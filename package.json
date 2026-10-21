@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-gemini-notebooklm",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "Obsidian plugin integrating Google NotebookLM (via nlm / Gemini Notebook MCP) into the right sidebar with @-file context, chat, and automatic artifact downloads.",
 	"main": "main.js",
 	"type": "module",

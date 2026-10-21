@@ -1,8 +1,12 @@
-import { execFile } from 'child_process';
+import { execFile, spawn } from 'child_process';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { promisify } from 'util';
 import {
 	ArtifactCreateOptions,
 	ArtifactType,
+	NlmHealthStatus,
 	NotebookInfo,
 	QueryResult,
 	SourceInfo,
@@ -12,19 +16,114 @@ import {
 const execFileAsync = promisify(execFile);
 
 export class NlmBridge {
-	private nlmPath: string;
+	private customPath: string;
+	private cachedDetectedPath: string | null = null;
 
-	constructor(nlmPath: string) {
-		this.nlmPath = nlmPath;
+	constructor(customPath: string) {
+		this.customPath = customPath.trim();
 	}
 
-	public setNlmPath(path: string): void {
-		this.nlmPath = path;
+	public setNlmPath(newPath: string): void {
+		this.customPath = newPath.trim();
+	}
+
+	public detectNlmPath(): string | null {
+		const isWin = process.platform === 'win32';
+		const home = os.homedir();
+		const binNames = isWin ? ['nlm.exe', 'nlm'] : ['nlm'];
+
+		const candidateDirs = [
+			path.join(home, '.local', 'bin'),
+			isWin
+				? path.join(home, 'AppData', 'Roaming', 'uv', 'tools', 'notebooklm-mcp-cli', 'Scripts')
+				: path.join(home, '.local', 'share', 'uv', 'tools', 'notebooklm-mcp-cli', 'bin'),
+			isWin
+				? path.join(home, 'pipx', 'venvs', 'notebooklm-mcp-cli', 'Scripts')
+				: path.join(home, '.local', 'pipx', 'venvs', 'notebooklm-mcp-cli', 'bin'),
+			'/opt/homebrew/bin',
+			'/usr/local/bin',
+		];
+
+		// Also scan PATH directories
+		const pathEnv = process.env.PATH || '';
+		const pathDirs = pathEnv.split(path.delimiter).filter(Boolean);
+		for (const d of pathDirs) {
+			if (!candidateDirs.includes(d)) {
+				candidateDirs.push(d);
+			}
+		}
+
+		for (const dir of candidateDirs) {
+			for (const bin of binNames) {
+				const full = path.join(dir, bin);
+				if (fs.existsSync(full)) {
+					this.cachedDetectedPath = full;
+					return full;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	public getEffectivePath(): string {
+		if (this.customPath) {
+			return this.customPath;
+		}
+		if (this.cachedDetectedPath && fs.existsSync(this.cachedDetectedPath)) {
+			return this.cachedDetectedPath;
+		}
+		return this.detectNlmPath() || (process.platform === 'win32' ? 'nlm.exe' : 'nlm');
+	}
+
+	public async checkHealth(): Promise<NlmHealthStatus> {
+		const exe = this.getEffectivePath();
+		try {
+			const out = await this.runNlm(['doctor'], 20000);
+			const versionMatch = /notebooklm-mcp-cli:\s*([^\r\n]+)/i.exec(out);
+			const accountMatch = /Account:\s*([^\r\n]+)/i.exec(out);
+			const cookiesMatch = /Cookies:\s*present/i.exec(out);
+
+			const version = versionMatch?.[1]?.trim() || 'installed';
+			const account = accountMatch?.[1]?.trim() || '';
+			const authenticated = Boolean(cookiesMatch || (account && account !== 'none'));
+
+			return {
+				installed: true,
+				authenticated,
+				version,
+				account: account || 'Google Account',
+				resolvedPath: exe,
+			};
+		} catch {
+			return {
+				installed: false,
+				authenticated: false,
+				version: '',
+				account: '',
+				resolvedPath: exe,
+			};
+		}
+	}
+
+	public launchBrowserLogin(onError?: (err: Error) => void): void {
+		const exe = this.getEffectivePath();
+		const child = spawn(exe, ['login'], {
+			detached: true,
+			stdio: 'ignore',
+			windowsHide: false,
+		});
+		child.on('error', (err) => {
+			console.error('Failed to launch nlm login:', err);
+			onError?.(err);
+		});
+		child.unref();
 	}
 
 	private async runNlm(args: string[], timeoutMs = 180000): Promise<string> {
+		const exe = this.getEffectivePath();
 		try {
-			const { stdout } = await execFileAsync(this.nlmPath, args, {
+			const { stdout } = await execFileAsync(exe, args, {
 				timeout: timeoutMs,
 				maxBuffer: 25 * 1024 * 1024,
 				windowsHide: true,
@@ -38,7 +137,7 @@ export class NlmBridge {
 		} catch (err: unknown) {
 			const errorObj = err as { stderr?: string; stdout?: string; message?: string };
 			const details = errorObj.stderr || errorObj.stdout || errorObj.message || String(err);
-			throw new Error(`NLM CLI Fehler (${args.slice(0, 2).join(' ')}): ${details}`);
+			throw new Error(`NLM CLI (${args.slice(0, 2).join(' ')}): ${details}`);
 		}
 	}
 
@@ -47,7 +146,6 @@ export class NlmBridge {
 		try {
 			return JSON.parse(trimmed) as T;
 		} catch {
-			// Scan line starts for '[' or '{' in case CLI printed log lines like "[INFO] ..." before JSON
 			const regex = /(?:^|\n)\s*([[{])/g;
 			let match: RegExpExecArray | null;
 			while ((match = regex.exec(trimmed)) !== null) {
@@ -58,7 +156,7 @@ export class NlmBridge {
 					// Continue searching next line start
 				}
 			}
-			throw new Error(`Ungültige JSON-Antwort von nlm: ${trimmed.slice(0, 120)}`);
+			throw new Error(`Invalid JSON from nlm: ${trimmed.slice(0, 120)}`);
 		}
 	}
 
@@ -68,7 +166,9 @@ export class NlmBridge {
 		return this.parseJsonSafe<NotebookInfo[]>(out);
 	}
 
-	public async createNotebook(title: string): Promise<{ notebook_id: string; title: string; url: string }> {
+	public async createNotebook(
+		title: string
+	): Promise<{ notebook_id: string; title: string; url: string }> {
 		const out = await this.runNlm(['notebook', 'create', title, '--json'], 45000);
 		return this.parseJsonSafe<{ notebook_id: string; title: string; url: string }>(out);
 	}
@@ -132,12 +232,11 @@ export class NlmBridge {
 				args.push('report', 'create', notebookId);
 				const chosenFormat = options.reportFormat || 'Study Guide';
 				if (focusText) {
-					// nlm report create only accepts --prompt with 'Create Your Own'
 					args.push('--format', 'Create Your Own');
 					const fullPrompt =
 						chosenFormat === 'Create Your Own'
 							? focusText
-							: `Erstelle ein Dokument im Stil "${chosenFormat}". Fokus: ${focusText}`;
+							: `Create a document in the style "${chosenFormat}". Focus: ${focusText}`;
 					args.push('--prompt', fullPrompt);
 				} else {
 					args.push('--format', chosenFormat);
@@ -168,10 +267,14 @@ export class NlmBridge {
 
 			case 'slide_deck':
 				args.push('slides', 'create', notebookId);
+				if (options.language) args.push('--language', options.language);
+				if (focusText) args.push('--focus', focusText);
 				break;
 
 			case 'infographic':
 				args.push('infographic', 'create', notebookId);
+				if (options.language) args.push('--language', options.language);
+				if (focusText) args.push('--focus', focusText);
 				break;
 		}
 
@@ -221,9 +324,11 @@ export class NlmBridge {
 				break;
 			case 'slide_deck':
 				subCmd = 'slide-deck';
+				extraArgs.push('--no-progress');
 				break;
 			case 'infographic':
 				subCmd = 'infographic';
+				extraArgs.push('--no-progress');
 				break;
 		}
 

@@ -1,5 +1,7 @@
-import { App, FuzzySuggestModal, Modal, Notice, Setting, TFile } from 'obsidian';
+import { App, FuzzySuggestModal, Modal, Notice, Setting, TFile, normalizePath } from 'obsidian';
 import { ArtifactCreateOptions, ArtifactType } from '../types';
+import { UILanguage, t } from '../i18n';
+import { FolderSuggest } from './folderSuggest';
 
 const SUPPORTED_EXTENSIONS = new Set([
 	'md',
@@ -26,7 +28,7 @@ export class VaultFileSuggestModal extends FuzzySuggestModal<TFile> {
 	constructor(
 		app: App,
 		onChoose: (file: TFile) => void,
-		placeholder = 'Datei auswählen (@-Kontext oder Notebook-Upload)...'
+		placeholder: string
 	) {
 		super(app);
 		this.onChoose = onChoose;
@@ -52,26 +54,36 @@ export class VaultFileSuggestModal extends FuzzySuggestModal<TFile> {
 
 export class CreateNotebookModal extends Modal {
 	private titleValue = '';
+	private uiLang: UILanguage;
 	private onSubmit: (title: string) => void;
 
-	constructor(app: App, defaultTitle: string, onSubmit: (title: string) => void) {
+	constructor(
+		app: App,
+		defaultTitle: string,
+		uiLang: UILanguage,
+		onSubmit: (title: string) => void
+	) {
 		super(app);
 		this.titleValue = defaultTitle;
+		this.uiLang = uiLang;
 		this.onSubmit = onSubmit;
 	}
 
 	onOpen(): void {
 		const { contentEl } = this;
+		const i18n = t(this.uiLang);
 		contentEl.empty();
 		contentEl.addClass('nlm-modal');
 
-		contentEl.createEl('h3', { text: 'Neues NotebookLM Notebook erstellen' });
+		new Setting(contentEl)
+			.setName(i18n.modalCreateNotebookTitle)
+			.setHeading();
 
 		new Setting(contentEl)
-			.setName('Notebook-Titel')
-			.setDesc('Name des neuen Notebooks in Google NotebookLM')
+			.setName(i18n.modalCreateNotebookName)
+			.setDesc(i18n.modalCreateNotebookDesc)
 			.addText((text) => {
-				text.setPlaceholder('z. B. Wirtschaftsinformatik - Vorlesung 2')
+				text.setPlaceholder(i18n.modalCreateNotebookPlaceholder)
 					.setValue(this.titleValue)
 					.onChange((val) => {
 						this.titleValue = val;
@@ -87,16 +99,16 @@ export class CreateNotebookModal extends Modal {
 			});
 
 		const footer = contentEl.createDiv({ cls: 'nlm-modal-footer' });
-		const cancelBtn = footer.createEl('button', { text: 'Abbrechen' });
+		const cancelBtn = footer.createEl('button', { text: i18n.btnCancel });
 		cancelBtn.addEventListener('click', () => this.close());
 
 		const createBtn = footer.createEl('button', {
-			text: 'Notebook erstellen',
+			text: i18n.btnCreateNotebook,
 			cls: 'mod-cta',
 		});
 		createBtn.addEventListener('click', () => {
 			if (!this.titleValue.trim()) {
-				new Notice('Bitte gib einen Titel ein.');
+				new Notice(i18n.noticeEnterTitle);
 				return;
 			}
 			this.close();
@@ -111,21 +123,26 @@ export class CreateNotebookModal extends Modal {
 
 export class ArtifactConfigModal extends Modal {
 	private options: ArtifactCreateOptions;
+	private defaultFolderRel: string;
+	private uiLang: UILanguage;
 	private onSubmit: (options: ArtifactCreateOptions) => void;
-	private targetFolderDisplay: string;
+	private folderSuggest: FolderSuggest | null = null;
 
 	constructor(
 		app: App,
 		initialType: ArtifactType,
 		defaultLanguage: string,
-		targetFolderDisplay: string,
+		defaultFolderRel: string,
+		uiLang: UILanguage,
 		onSubmit: (options: ArtifactCreateOptions) => void
 	) {
 		super(app);
-		this.targetFolderDisplay = targetFolderDisplay;
+		this.defaultFolderRel = defaultFolderRel;
+		this.uiLang = uiLang;
 		this.options = {
 			type: initialType,
 			language: defaultLanguage || 'de',
+			targetFolderRel: defaultFolderRel,
 			audioFormat: 'deep_dive',
 			audioLength: 'long',
 			reportFormat: 'Study Guide',
@@ -142,32 +159,53 @@ export class ArtifactConfigModal extends Modal {
 	}
 
 	private render(): void {
+		this.folderSuggest?.close();
+		this.folderSuggest = null;
 		const { contentEl } = this;
+		const i18n = t(this.uiLang);
 		contentEl.empty();
 		contentEl.addClass('nlm-modal');
 
-		contentEl.createEl('h3', { text: '✨ NotebookLM Studio Artefakt erstellen' });
+		new Setting(contentEl)
+			.setName(i18n.modalArtifactTitle)
+			.setHeading();
 
-		const infoBanner = contentEl.createDiv({ cls: 'nlm-modal-target-banner' });
-		infoBanner.createSpan({
-			text: `📂 Zielordner für Auto-Download: `,
-			cls: 'nlm-modal-target-label',
-		});
-		infoBanner.createEl('code', {
-			text: this.targetFolderDisplay || '/ (Vault-Wurzelverzeichnis)',
-		});
+		let folderInputEl: HTMLInputElement | null = null;
+		new Setting(contentEl)
+			.setName(i18n.modalTargetFolderName)
+			.setDesc(i18n.modalTargetFolderDesc)
+			.addText((text) => {
+				folderInputEl = text.inputEl;
+				text.setPlaceholder(i18n.modalTargetFolderPlaceholder)
+					.setValue(this.options.targetFolderRel ?? '')
+					.onChange((val) => {
+						const trimmed = val.trim().replace(/^\/+|\/+$/g, '');
+						this.options.targetFolderRel = trimmed ? normalizePath(trimmed) : '';
+					});
+				this.folderSuggest = new FolderSuggest(this.app, text.inputEl);
+			})
+			.addExtraButton((btn) => {
+				btn.setIcon('rotate-ccw')
+					.setTooltip(i18n.btnResetToNoteFolder)
+					.onClick(() => {
+						this.options.targetFolderRel = this.defaultFolderRel;
+						if (folderInputEl) {
+							folderInputEl.value = this.defaultFolderRel;
+						}
+					});
+			});
 
 		new Setting(contentEl)
-			.setName('Artefakt-Typ')
-			.setDesc('Welche Art von Ausarbeitung soll NotebookLM generieren?')
+			.setName(i18n.modalArtifactTypeName)
+			.setDesc(i18n.modalArtifactTypeDesc)
 			.addDropdown((dd) => {
-				dd.addOption('audio', '🎧 Audio Overview (Podcast)')
-					.addOption('report', '📄 Report / Zusammenfassung (Markdown)')
-					.addOption('quiz', '❓ Quiz (Markdown)')
-					.addOption('flashcards', '🗂️ Karteikarten / Flashcards (Markdown)')
-					.addOption('mind_map', '🧠 Mind Map (JSON)')
-					.addOption('slide_deck', '📊 Präsentation / Slide Deck (PDF)')
-					.addOption('infographic', '🖼️ Infografik (PNG)')
+				dd.addOption('audio', i18n.optTypeAudio)
+					.addOption('report', i18n.optTypeReport)
+					.addOption('quiz', i18n.optTypeQuiz)
+					.addOption('flashcards', i18n.optTypeFlashcards)
+					.addOption('mind_map', i18n.optTypeMindmap)
+					.addOption('slide_deck', i18n.optTypeSlides)
+					.addOption('infographic', i18n.optTypeInfographic)
 					.setValue(this.options.type)
 					.onChange((val) => {
 						this.options.type = val as ArtifactType;
@@ -177,13 +215,13 @@ export class ArtifactConfigModal extends Modal {
 
 		if (this.options.type === 'audio') {
 			new Setting(contentEl)
-				.setName('Podcast-Format')
-				.setDesc('Stil der Audiozusammenfassung')
+				.setName(i18n.modalAudioFormatName)
+				.setDesc(i18n.modalAudioFormatDesc)
 				.addDropdown((dd) => {
-					dd.addOption('deep_dive', 'Deep Dive (Ausführliches Gespräch)')
-						.addOption('brief', 'Brief (Kompakter Überblick)')
-						.addOption('critique', 'Critique (Kritische Analyse)')
-						.addOption('debate', 'Debate (Pro & Contra Debatte)')
+					dd.addOption('deep_dive', i18n.optAudioDeepDive)
+						.addOption('brief', i18n.optAudioBrief)
+						.addOption('critique', i18n.optAudioCritique)
+						.addOption('debate', i18n.optAudioDebate)
 						.setValue(this.options.audioFormat || 'deep_dive')
 						.onChange((val) => {
 							this.options.audioFormat = val as ArtifactCreateOptions['audioFormat'];
@@ -191,12 +229,12 @@ export class ArtifactConfigModal extends Modal {
 				});
 
 			new Setting(contentEl)
-				.setName('Länge')
-				.setDesc('Angestrebte Dauer (Long ≈ 12–18 Min.)')
+				.setName(i18n.modalAudioLengthName)
+				.setDesc(i18n.modalAudioLengthDesc)
 				.addDropdown((dd) => {
-					dd.addOption('short', 'Kurz (~5 Min.)')
-						.addOption('default', 'Standard (~10 Min.)')
-						.addOption('long', 'Lang (~15+ Min.)')
+					dd.addOption('short', i18n.optLengthShort)
+						.addOption('default', i18n.optLengthDefault)
+						.addOption('long', i18n.optLengthLong)
 						.setValue(this.options.audioLength || 'long')
 						.onChange((val) => {
 							this.options.audioLength = val as ArtifactCreateOptions['audioLength'];
@@ -206,12 +244,12 @@ export class ArtifactConfigModal extends Modal {
 
 		if (this.options.type === 'report') {
 			new Setting(contentEl)
-				.setName('Report-Format')
+				.setName(i18n.modalReportFormatName)
 				.addDropdown((dd) => {
-					dd.addOption('Study Guide', 'Study Guide (Lernleitfaden)')
-						.addOption('Briefing Doc', 'Briefing Doc (Kompaktbericht)')
-						.addOption('Blog Post', 'Blog Post (Artikelform)')
-						.addOption('Create Your Own', 'Eigener Prompt (Create Your Own)')
+					dd.addOption('Study Guide', i18n.optReportStudyGuide)
+						.addOption('Briefing Doc', i18n.optReportBriefing)
+						.addOption('Blog Post', i18n.optReportBlog)
+						.addOption('Create Your Own', i18n.optReportCustom)
 						.setValue(this.options.reportFormat || 'Study Guide')
 						.onChange((val) => {
 							this.options.reportFormat = val as ArtifactCreateOptions['reportFormat'];
@@ -221,7 +259,7 @@ export class ArtifactConfigModal extends Modal {
 
 		if (this.options.type === 'quiz') {
 			new Setting(contentEl)
-				.setName('Anzahl Fragen')
+				.setName(i18n.modalQuizCountName)
 				.addSlider((slider) => {
 					slider
 						.setLimits(2, 15, 1)
@@ -233,7 +271,7 @@ export class ArtifactConfigModal extends Modal {
 				});
 
 			new Setting(contentEl)
-				.setName('Schwierigkeitsgrad (1–5)')
+				.setName(i18n.modalQuizDiffName)
 				.addSlider((slider) => {
 					slider
 						.setLimits(1, 5, 1)
@@ -247,11 +285,11 @@ export class ArtifactConfigModal extends Modal {
 
 		if (this.options.type === 'flashcards') {
 			new Setting(contentEl)
-				.setName('Schwierigkeitsgrad')
+				.setName(i18n.modalFlashcardsDiffName)
 				.addDropdown((dd) => {
-					dd.addOption('easy', 'Leicht')
-						.addOption('medium', 'Mittel')
-						.addOption('hard', 'Schwer')
+					dd.addOption('easy', i18n.optDiffEasy)
+						.addOption('medium', i18n.optDiffMedium)
+						.addOption('hard', i18n.optDiffHard)
 						.setValue(this.options.flashcardsDifficulty || 'medium')
 						.onChange((val) => {
 							this.options.flashcardsDifficulty =
@@ -260,13 +298,19 @@ export class ArtifactConfigModal extends Modal {
 				});
 		}
 
-		if (this.options.type === 'audio' || this.options.type === 'report') {
+		if (
+			this.options.type === 'audio' ||
+			this.options.type === 'report' ||
+			this.options.type === 'slide_deck' ||
+			this.options.type === 'infographic'
+		) {
+			const defaultLangCode = this.options.language || 'de';
 			new Setting(contentEl)
-				.setName('Sprache')
-				.setDesc('BCP-47 Sprachcode (z. B. de, en)')
+				.setName(i18n.modalLanguageName)
+				.setDesc(i18n.modalLanguageDesc)
 				.addText((text) => {
-					text.setPlaceholder('de')
-						.setValue(this.options.language || 'de')
+					text.setPlaceholder(defaultLangCode)
+						.setValue(defaultLangCode)
 						.onChange((val) => {
 							this.options.language = val.trim();
 						});
@@ -274,15 +318,11 @@ export class ArtifactConfigModal extends Modal {
 		}
 
 		const focusSetting = new Setting(contentEl)
-			.setName('Fokus / Spezielle Anweisungen (optional)')
-			.setDesc(
-				'Worauf soll besonders eingegangen werden? (z. B. Beispiele, Modelle, Prüfungsfokus)'
-			);
+			.setName(i18n.modalFocusName)
+			.setDesc(i18n.modalFocusDesc);
 		focusSetting.settingEl.addClass('nlm-focus-setting-block');
 		focusSetting.addTextArea((ta) => {
-			ta.setPlaceholder(
-				'z. B. Erläutere insbesondere Informationssysteme, sozio-technische Systeme und das Schalenmodell anhand von Beispielen...'
-			)
+			ta.setPlaceholder(i18n.modalFocusPlaceholder)
 				.setValue(this.options.focus || '')
 				.onChange((val) => {
 					this.options.focus = val;
@@ -292,11 +332,11 @@ export class ArtifactConfigModal extends Modal {
 		});
 
 		const footer = contentEl.createDiv({ cls: 'nlm-modal-footer' });
-		const cancelBtn = footer.createEl('button', { text: 'Abbrechen' });
+		const cancelBtn = footer.createEl('button', { text: i18n.btnCancel });
 		cancelBtn.addEventListener('click', () => this.close());
 
 		const startBtn = footer.createEl('button', {
-			text: '🚀 Generierung starten',
+			text: i18n.btnStartGeneration,
 			cls: 'mod-cta',
 		});
 		startBtn.addEventListener('click', () => {
@@ -306,6 +346,8 @@ export class ArtifactConfigModal extends Modal {
 	}
 
 	onClose(): void {
+		this.folderSuggest?.close();
+		this.folderSuggest = null;
 		this.contentEl.empty();
 	}
 }

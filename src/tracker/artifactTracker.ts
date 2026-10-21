@@ -3,6 +3,8 @@ import * as fs from 'fs';
 import { App, Notice, TFile } from 'obsidian';
 import { ArtifactJob, ArtifactType } from '../types';
 import { NlmBridge } from '../bridge/nlmBridge';
+import { UILanguage, resolveUILanguage, t } from '../i18n';
+import { convertMindmapJsonToMarkdown } from '../utils/mindmapConverter';
 
 const MAX_STORED_JOBS = 30;
 
@@ -15,19 +17,25 @@ export class ArtifactTracker {
 	private intervalId: number | null = null;
 	private isPolling = false;
 	private autoInsertLink: () => boolean;
+	private convertMindmap: () => boolean;
+	private getLang: () => UILanguage;
 
 	constructor(
 		app: App,
 		bridge: NlmBridge,
 		getJobs: () => ArtifactJob[],
 		saveJobs: (jobs: ArtifactJob[]) => Promise<void>,
-		autoInsertLink: () => boolean
+		autoInsertLink: () => boolean,
+		convertMindmap: () => boolean,
+		getLang: () => UILanguage
 	) {
 		this.app = app;
 		this.bridge = bridge;
 		this.getJobs = getJobs;
 		this.saveJobs = saveJobs;
 		this.autoInsertLink = autoInsertLink;
+		this.convertMindmap = convertMindmap;
+		this.getLang = getLang;
 	}
 
 	public onUpdate(cb: () => void): () => void {
@@ -63,7 +71,6 @@ export class ArtifactTracker {
 	public async addJob(job: ArtifactJob): Promise<void> {
 		const jobs = this.getJobs();
 		jobs.unshift(job);
-		// Prune old completed/failed jobs beyond MAX_STORED_JOBS
 		if (jobs.length > MAX_STORED_JOBS) {
 			const active = jobs.filter((j) => !j.downloaded && j.status !== 'failed');
 			const done = jobs
@@ -99,7 +106,7 @@ export class ArtifactTracker {
 			case 'flashcards':
 				return '.md';
 			case 'mind_map':
-				return '.json';
+				return this.convertMindmap() ? '.md' : '.json';
 			case 'slide_deck':
 				return '.pdf';
 			case 'infographic':
@@ -146,6 +153,7 @@ export class ArtifactTracker {
 		if (initialPending.length === 0) return;
 
 		this.isPolling = true;
+		const i18n = t(this.getLang());
 		try {
 			const byNotebook = new Map<string, ArtifactJob[]>();
 			for (const job of initialPending) {
@@ -160,7 +168,6 @@ export class ArtifactTracker {
 				try {
 					const statuses = await this.bridge.getStudioStatus(notebookId);
 					for (const snapshotJob of notebookJobs) {
-						// Always look up the live job in this.getJobs() to avoid stale state overwrite
 						const liveJob = this.getJobs().find((j) => j.id === snapshotJob.id);
 						if (!liveJob || liveJob.downloaded || liveJob.status === 'failed') {
 							continue;
@@ -182,22 +189,21 @@ export class ArtifactTracker {
 							changed = true;
 						} else if (normalizedStatus === 'failed') {
 							liveJob.status = 'failed';
-							liveJob.error = 'Generierung in NotebookLM fehlgeschlagen.';
+							liveJob.error = i18n.artifactFailed;
 							changed = true;
-							new Notice(`❌ Artefakt fehlgeschlagen: ${liveJob.label}`);
+							new Notice(i18n.noticeArtifactFailedRemote(liveJob.label));
 						} else if (normalizedStatus === 'completed' && !liveJob.downloaded) {
 							const ok = await this.downloadCompletedJob(liveJob);
 							if (ok) {
 								changed = true;
 							} else {
-								// Keep status as 'processing' so next poll retries the download
 								liveJob.status = 'processing';
 								changed = true;
 							}
 						}
 					}
 				} catch (err) {
-					console.warn(`Fehler beim Status-Check für Notebook ${notebookId}:`, err);
+					console.warn(`Status check failed for notebook ${notebookId}:`, err);
 				}
 			}
 
@@ -211,7 +217,10 @@ export class ArtifactTracker {
 	}
 
 	public async downloadCompletedJob(job: ArtifactJob): Promise<boolean> {
+		const i18n = t(this.getLang());
 		try {
+			const shouldConvertMindmap =
+				job.type === 'mind_map' && this.convertMindmap();
 			const ext = this.getExtensionForType(job.type);
 			const typeLabel = this.getTypeLabel(job.type);
 			const baseNote = this.sanitizeFileName(job.sourceNoteName || 'NotebookLM');
@@ -230,14 +239,61 @@ export class ArtifactTracker {
 				counter++;
 			}
 
-			new Notice(`⏬ Lade fertiges Artefakt herunter: ${fileName}...`);
+			new Notice(i18n.noticeDownloadingArtifact(fileName));
 
-			await this.bridge.downloadArtifact(
-				job.notebookId,
-				job.id,
-				job.type,
-				outputAbsPath
-			);
+			if (shouldConvertMindmap) {
+				const tempJsonPath = `${outputAbsPath}.tmp.json`;
+				try {
+					await this.bridge.downloadArtifact(
+						job.notebookId,
+						job.id,
+						job.type,
+						tempJsonPath
+					);
+				} catch (dlErr) {
+					if (fs.existsSync(tempJsonPath)) {
+						try {
+							fs.unlinkSync(tempJsonPath);
+						} catch {
+							// Ignore cleanup error
+						}
+					}
+					throw dlErr;
+				}
+				try {
+					const rawJson = fs.readFileSync(tempJsonPath, 'utf-8');
+					const markdownContent = convertMindmapJsonToMarkdown(
+						rawJson,
+						`${baseNote} - ${typeLabel}`,
+						resolveUILanguage(this.getLang())
+					);
+					fs.writeFileSync(outputAbsPath, markdownContent, 'utf-8');
+					fs.unlinkSync(tempJsonPath);
+				} catch (convErr) {
+					console.warn(
+						'Mindmap JSON to Mermaid conversion failed, keeping JSON file:',
+						convErr
+					);
+					let jsonFileName = fileName.replace(/\.md$/, '.json');
+					let jsonAbsPath = path.join(job.targetFolderAbs, jsonFileName);
+					let fallbackCounter = 2;
+					while (fs.existsSync(jsonAbsPath)) {
+						jsonFileName = `${baseNote} - ${typeLabel} (${dateSuffix}_${fallbackCounter}).json`;
+						jsonAbsPath = path.join(job.targetFolderAbs, jsonFileName);
+						fallbackCounter++;
+					}
+					fileName = jsonFileName;
+					outputAbsPath = jsonAbsPath;
+					fs.renameSync(tempJsonPath, outputAbsPath);
+				}
+			} else {
+				await this.bridge.downloadArtifact(
+					job.notebookId,
+					job.id,
+					job.type,
+					outputAbsPath
+				);
+			}
 
 			job.downloaded = true;
 			job.status = 'completed';
@@ -247,7 +303,7 @@ export class ArtifactTracker {
 				: fileName;
 
 			new Notice(
-				`✅ ${typeLabel} gespeichert in:\n${job.downloadedFilePath}`,
+				i18n.noticeArtifactSaved(typeLabel, job.downloadedFilePath),
 				8000
 			);
 
@@ -263,8 +319,8 @@ export class ArtifactTracker {
 			return true;
 		} catch (err: unknown) {
 			const msg = err instanceof Error ? err.message : String(err);
-			job.error = `Download-Fehler: ${msg}`;
-			new Notice(`⚠️ Download für ${job.label} fehlgeschlagen (wird erneut versucht): ${msg}`);
+			job.error = msg;
+			new Notice(i18n.noticeDownloadRetry(job.label, msg));
 			return false;
 		}
 	}

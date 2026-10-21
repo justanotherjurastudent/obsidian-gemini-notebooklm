@@ -1,3 +1,5 @@
+import { UILanguage } from './i18n';
+
 export interface NotebookInfo {
 	id: string;
 	title: string;
@@ -50,6 +52,7 @@ export interface ArtifactCreateOptions {
 	type: ArtifactType;
 	focus?: string;
 	language?: string;
+	targetFolderRel?: string;
 	audioFormat?: 'deep_dive' | 'brief' | 'critique' | 'debate';
 	audioLength?: 'short' | 'default' | 'long';
 	reportFormat?: 'Briefing Doc' | 'Study Guide' | 'Blog Post' | 'Create Your Own';
@@ -87,12 +90,22 @@ export interface StudioArtifactStatus {
 	title?: string;
 }
 
+export interface NlmHealthStatus {
+	installed: boolean;
+	authenticated: boolean;
+	version: string;
+	account: string;
+	resolvedPath: string;
+}
+
 export interface NotebookLMPluginSettings {
+	uiLanguage: UILanguage;
 	nlmPath: string;
 	defaultLanguage: string;
 	pollIntervalSeconds: number;
 	autoIncludeActiveNote: boolean;
 	autoInsertLinkIntoNote: boolean;
+	convertMindmapToMermaid: boolean;
 	activeNotebookId: string;
 	artifactJobs: ArtifactJob[];
 	chatHistories: Record<string, { conversationId?: string; messages: ChatMessage[] }>;
@@ -101,12 +114,14 @@ export interface NotebookLMPluginSettings {
 }
 
 export const DEFAULT_SETTINGS: NotebookLMPluginSettings = {
-	nlmPath: 'C:\\Users\\lukas\\.local\\bin\\nlm.exe',
+	uiLanguage: 'auto',
+	nlmPath: '',
 	defaultLanguage: 'de',
 	pollIntervalSeconds: 15,
 	autoIncludeActiveNote: true,
 	autoInsertLinkIntoNote: false,
-	activeNotebookId: '2016a47a-778d-4a6e-a702-7bdbd45d6d1d',
+	convertMindmapToMermaid: true,
+	activeNotebookId: '',
 	artifactJobs: [],
 	chatHistories: {},
 	uploadedFileMap: {},

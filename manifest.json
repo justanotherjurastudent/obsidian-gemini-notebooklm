@@ -1,9 +1,9 @@
 {
 	"id": "gemini-notebooklm",
 	"name": "Gemini NotebookLM Studio",
-	"version": "1.0.0",
-	"minAppVersion": "1.7.2",
-	"description": "Nahtlose Integration von Google NotebookLM (über nlm / MCP) in die rechte Sidebar: Notebook-Auswahl, Datei-Upload, @-Dateikontext, Chat und automatischer Artefakt-Download ins Notiz-Verzeichnis.",
+	"version": "1.1.0",
+	"minAppVersion": "1.8.7",
+	"description": "Integrate Google NotebookLM into the right sidebar with notebook switching, @-file context, grounded chat, and automatic artifact downloads (including Mermaid mind maps).",
 	"author": "Lukas",
 	"isDesktopOnly": true
 }
