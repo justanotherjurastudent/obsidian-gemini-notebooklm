@@ -1,11 +1,9 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"id": "gemini-notebooklm",
+	"name": "Gemini NotebookLM Studio",
 	"version": "1.0.0",
-	"minAppVersion": "1.0.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": false
+	"minAppVersion": "1.7.2",
+	"description": "Nahtlose Integration von Google NotebookLM (über nlm / MCP) in die rechte Sidebar: Notebook-Auswahl, Datei-Upload, @-Dateikontext, Chat und automatischer Artefakt-Download ins Notiz-Verzeichnis.",
+	"author": "Lukas",
+	"isDesktopOnly": true
 }

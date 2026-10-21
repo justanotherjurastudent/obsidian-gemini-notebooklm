@@ -1,8 +1,812 @@
-/*
+/* ==========================================================================
+   Gemini NotebookLM Studio — Obsidian Sidebar UI
+   ========================================================================== */
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.nlm-sidebar-root {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 0;
+	overflow: hidden;
+	background: var(--background-secondary);
+	font-size: var(--font-ui-small);
+}
 
-If your plugin does not need CSS, delete this file.
+/* --------------------------------------------------------------------------
+   1. TOP HEADER & NOTEBOOK SELECTOR
+   -------------------------------------------------------------------------- */
+.nlm-header {
+	padding: 10px 12px;
+	background: var(--background-primary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	flex-shrink: 0;
+}
 
-*/
+.nlm-brand-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.nlm-brand-title-group {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-weight: 600;
+	font-size: 13.5px;
+	color: var(--text-normal);
+}
+
+.nlm-brand-icon {
+	display: inline-flex;
+	align-items: center;
+	color: var(--interactive-accent);
+}
+
+.nlm-brand-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+.nlm-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.nlm-icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	padding: 4px 7px;
+	height: 26px;
+	border-radius: 6px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: all 0.15s ease;
+	font-size: 11.5px;
+}
+
+.nlm-icon-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+.nlm-icon-btn svg {
+	width: 14px;
+	height: 14px;
+}
+
+.nlm-upload-header-btn {
+	color: var(--interactive-accent);
+	font-weight: 500;
+}
+
+.nlm-notebook-selector-row {
+	display: flex;
+	width: 100%;
+}
+
+.nlm-notebook-select {
+	width: 100%;
+	height: 30px;
+	padding: 0 8px;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: 12.5px;
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.nlm-notebook-select:focus {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.15);
+}
+
+/* --------------------------------------------------------------------------
+   2. COLLAPSIBLE SOURCES DRAWER
+   -------------------------------------------------------------------------- */
+.nlm-sources-section {
+	background: var(--background-primary-alt);
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.nlm-sources-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 6px 12px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.nlm-sources-header:hover {
+	background: var(--background-modifier-hover);
+}
+
+.nlm-sources-header-left {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--text-muted);
+}
+
+.nlm-chevron {
+	display: inline-flex;
+	align-items: center;
+}
+
+.nlm-chevron svg {
+	width: 14px;
+	height: 14px;
+}
+
+.nlm-badge {
+	background: rgba(var(--interactive-accent-rgb), 0.15);
+	color: var(--interactive-accent);
+	font-size: 10.5px;
+	font-weight: 600;
+	padding: 1px 6px;
+	border-radius: 10px;
+}
+
+.nlm-sources-add-btn {
+	font-size: 11px;
+	padding: 2px 8px;
+	height: 22px;
+	border-radius: 5px;
+	cursor: pointer;
+}
+
+.nlm-sources-list {
+	max-height: 170px;
+	overflow-y: auto;
+	padding: 6px 12px 10px 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	border-top: 1px solid var(--background-modifier-border-hover);
+}
+
+.nlm-sources-list.is-collapsed {
+	display: none;
+}
+
+.nlm-source-quick-active {
+	margin-bottom: 4px;
+}
+
+.nlm-upload-active-note-btn {
+	width: 100%;
+	font-size: 11.5px;
+	padding: 4px 8px;
+	border-radius: 6px;
+	background: rgba(var(--interactive-accent-rgb), 0.12);
+	color: var(--interactive-accent);
+	border: 1px dashed var(--interactive-accent);
+	cursor: pointer;
+	text-align: left;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.nlm-upload-active-note-btn:hover {
+	background: rgba(var(--interactive-accent-rgb), 0.22);
+}
+
+.nlm-sources-empty {
+	font-size: 11.5px;
+	color: var(--text-faint);
+	text-align: center;
+	padding: 8px 0;
+}
+
+.nlm-source-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 6px;
+	border-radius: 5px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	font-size: 11.5px;
+}
+
+.nlm-source-icon {
+	display: inline-flex;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.nlm-source-icon svg {
+	width: 13px;
+	height: 13px;
+}
+
+.nlm-source-name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--text-normal);
+}
+
+.nlm-source-del-btn {
+	background: transparent;
+	border: none;
+	padding: 2px;
+	height: 18px;
+	width: 18px;
+	color: var(--text-faint);
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 4px;
+}
+
+.nlm-source-del-btn:hover {
+	color: var(--text-error);
+	background: rgba(255, 0, 0, 0.1);
+}
+
+.nlm-source-del-btn svg {
+	width: 12px;
+	height: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   3. STUDIO QUICK-BAR
+   -------------------------------------------------------------------------- */
+.nlm-studio-bar {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 7px 12px;
+	background: var(--background-primary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	overflow-x: auto;
+	flex-shrink: 0;
+}
+
+.nlm-studio-label {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-faint);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	margin-right: 2px;
+}
+
+.nlm-studio-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 3px 8px;
+	height: 24px;
+	border-radius: 12px;
+	font-size: 11.5px;
+	font-weight: 500;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-normal);
+	cursor: pointer;
+	white-space: nowrap;
+	transition: all 0.15s ease;
+}
+
+.nlm-studio-pill:hover {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+	transform: translateY(-1px);
+}
+
+.nlm-studio-pill-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+.nlm-studio-pill-icon svg {
+	width: 12px;
+	height: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   4. ARTIFACT JOBS & AUTO-DOWNLOAD PANEL
+   -------------------------------------------------------------------------- */
+.nlm-artifacts-panel {
+	background: var(--background-primary-alt);
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding: 8px 12px;
+	max-height: 165px;
+	overflow-y: auto;
+	flex-shrink: 0;
+}
+
+.nlm-artifacts-panel.is-empty {
+	display: none;
+}
+
+.nlm-artifacts-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 6px;
+}
+
+.nlm-artifacts-title {
+	font-size: 11.5px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.nlm-artifacts-actions {
+	display: flex;
+	gap: 4px;
+}
+
+.nlm-artifacts-mini-btn {
+	font-size: 10.5px;
+	padding: 1px 6px;
+	height: 20px;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.nlm-artifacts-list {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.nlm-artifact-card {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 5px 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.nlm-artifact-card-top {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.nlm-status-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.nlm-status-dot.is-queued,
+.nlm-status-dot.is-processing {
+	background: #f59e0b;
+	box-shadow: 0 0 6px #f59e0b;
+	animation: nlm-pulse 1.4s infinite ease-in-out;
+}
+
+.nlm-status-dot.is-completed {
+	background: #10b981;
+}
+
+.nlm-status-dot.is-failed {
+	background: #ef4444;
+}
+
+@keyframes nlm-pulse {
+	0%, 100% { opacity: 1; transform: scale(1); }
+	50% { opacity: 0.45; transform: scale(0.85); }
+}
+
+.nlm-artifact-label {
+	flex: 1;
+	font-size: 11.5px;
+	font-weight: 500;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.nlm-artifact-remove-btn {
+	background: transparent;
+	border: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	padding: 0 4px;
+	height: 18px;
+	font-size: 13px;
+}
+
+.nlm-artifact-remove-btn:hover {
+	color: var(--text-normal);
+}
+
+.nlm-artifact-card-sub {
+	font-size: 10.5px;
+	padding-left: 14px;
+}
+
+.nlm-artifact-open-link {
+	color: var(--interactive-accent);
+	cursor: pointer;
+	text-decoration: none;
+	font-weight: 500;
+}
+
+.nlm-artifact-open-link:hover {
+	text-decoration: underline;
+}
+
+.nlm-artifact-pending-info {
+	color: var(--text-muted);
+}
+
+.nlm-artifact-error {
+	color: var(--text-error);
+}
+
+/* Status Banner */
+.nlm-status-banner {
+	background: rgba(var(--interactive-accent-rgb), 0.14);
+	color: var(--interactive-accent);
+	padding: 6px 12px;
+	font-size: 11.5px;
+	font-weight: 500;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.nlm-status-banner.is-hidden {
+	display: none;
+}
+
+/* --------------------------------------------------------------------------
+   5. CHAT FEED
+   -------------------------------------------------------------------------- */
+.nlm-chat-feed {
+	flex: 1;
+	overflow-y: auto;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.nlm-chat-empty {
+	margin: auto;
+	text-align: center;
+	padding: 24px 16px;
+	color: var(--text-muted);
+	max-width: 280px;
+}
+
+.nlm-chat-empty-icon {
+	display: inline-flex;
+	padding: 12px;
+	border-radius: 50%;
+	background: rgba(var(--interactive-accent-rgb), 0.1);
+	color: var(--interactive-accent);
+	margin-bottom: 8px;
+}
+
+.nlm-chat-empty-icon svg {
+	width: 24px;
+	height: 24px;
+}
+
+.nlm-chat-empty h4 {
+	margin: 4px 0 6px 0;
+	color: var(--text-normal);
+	font-size: 13.5px;
+}
+
+.nlm-chat-empty p {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.45;
+}
+
+.nlm-chat-bubble {
+	padding: 9px 11px;
+	border-radius: 10px;
+	max-width: 95%;
+	line-height: 1.45;
+	word-break: break-word;
+}
+
+.nlm-chat-user {
+	align-self: flex-end;
+	background: rgba(var(--interactive-accent-rgb), 0.15);
+	border: 1px solid rgba(var(--interactive-accent-rgb), 0.3);
+	border-bottom-right-radius: 3px;
+}
+
+.nlm-chat-assistant {
+	align-self: flex-start;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-bottom-left-radius: 3px;
+	width: 100%;
+}
+
+.nlm-chat-meta {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 4px;
+	font-size: 10.5px;
+}
+
+.nlm-chat-author {
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+.nlm-chat-ctx-badge {
+	background: var(--background-secondary);
+	padding: 1px 6px;
+	border-radius: 8px;
+	color: var(--text-muted);
+}
+
+.nlm-chat-content p:first-child {
+	margin-top: 0;
+}
+
+.nlm-chat-content p:last-child {
+	margin-bottom: 0;
+}
+
+.nlm-chat-refs {
+	margin-top: 8px;
+	padding-top: 6px;
+	border-top: 1px dashed var(--background-modifier-border);
+	font-size: 11px;
+}
+
+.nlm-chat-refs summary {
+	cursor: pointer;
+	color: var(--interactive-accent);
+	font-weight: 500;
+	user-select: none;
+}
+
+.nlm-chat-refs-list {
+	margin-top: 6px;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.nlm-chat-ref-item {
+	background: var(--background-secondary);
+	padding: 5px 7px;
+	border-radius: 5px;
+	color: var(--text-muted);
+	font-size: 10.5px;
+}
+
+.nlm-chat-msg-actions {
+	display: flex;
+	gap: 6px;
+	margin-top: 8px;
+	padding-top: 6px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.nlm-msg-action-btn {
+	font-size: 10.5px;
+	padding: 2px 8px;
+	height: 22px;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   6. BOTTOM COMPOSER & @ CONTEXT CHIPS
+   -------------------------------------------------------------------------- */
+.nlm-composer {
+	padding: 8px 10px 10px 10px;
+	background: var(--background-primary);
+	border-top: 1px solid var(--background-modifier-border);
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
+.nlm-context-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px;
+}
+
+.nlm-context-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	flex: 1;
+	max-height: 58px;
+	overflow-y: auto;
+}
+
+.nlm-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 7px;
+	border-radius: 12px;
+	font-size: 11px;
+	cursor: pointer;
+	user-select: none;
+	max-width: 180px;
+	border: 1px solid var(--background-modifier-border);
+	transition: all 0.12s ease;
+}
+
+.nlm-chip.is-active {
+	background: rgba(var(--interactive-accent-rgb), 0.14);
+	border-color: rgba(var(--interactive-accent-rgb), 0.4);
+	color: var(--text-normal);
+}
+
+.nlm-chip.is-muted {
+	background: var(--background-secondary);
+	color: var(--text-faint);
+	opacity: 0.7;
+}
+
+.nlm-chip-icon {
+	display: inline-flex;
+	align-items: center;
+	color: var(--interactive-accent);
+}
+
+.nlm-chip-icon svg {
+	width: 11px;
+	height: 11px;
+}
+
+.nlm-chip-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.nlm-chip-remove {
+	font-weight: bold;
+	margin-left: 2px;
+	color: var(--text-muted);
+}
+
+.nlm-chip-remove:hover {
+	color: var(--text-error);
+}
+
+.nlm-add-context-btn {
+	font-size: 11px;
+	padding: 2px 7px;
+	height: 22px;
+	border-radius: 6px;
+	cursor: pointer;
+	flex-shrink: 0;
+	font-weight: 600;
+	color: var(--interactive-accent);
+}
+
+.nlm-input-wrapper {
+	display: flex;
+	align-items: flex-end;
+	gap: 6px;
+}
+
+.nlm-prompt-textarea {
+	flex: 1;
+	resize: none;
+	border-radius: 8px;
+	padding: 7px 9px;
+	font-size: 12.5px;
+	line-height: 1.4;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-normal);
+	min-height: 38px;
+	max-height: 120px;
+	height: var(--nlm-ta-height, auto);
+}
+
+.nlm-full-width-textarea {
+	width: 100%;
+	min-height: 120px;
+	resize: vertical;
+	padding: 8px 10px;
+	line-height: 1.45;
+	font-size: 13px;
+}
+
+.nlm-focus-setting-block {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 8px;
+}
+
+.nlm-focus-setting-block .setting-item-info {
+	width: 100%;
+	margin-right: 0;
+}
+
+.nlm-focus-setting-block .setting-item-control {
+	width: 100%;
+	justify-content: stretch;
+}
+
+.nlm-prompt-textarea:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+}
+
+.nlm-composer-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.nlm-send-btn {
+	height: 34px;
+	width: 34px;
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.nlm-send-btn svg {
+	width: 15px;
+	height: 15px;
+}
+
+/* --------------------------------------------------------------------------
+   7. MODALS
+   -------------------------------------------------------------------------- */
+.nlm-modal h3 {
+	margin-top: 0;
+	margin-bottom: 12px;
+}
+
+.nlm-modal-target-banner {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	padding: 8px 10px;
+	border-radius: 6px;
+	margin-bottom: 12px;
+	font-size: 12px;
+}
+
+.nlm-modal-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 16px;
+}
