@@ -43,9 +43,17 @@ nlm login
 A browser window will open so you can sign in to your Google account.
 
 #### 3. Configure in Obsidian
-1. Open **Settings → Community Plugins → Gemini NotebookLM Studio**.
+1. Open **Settings → Community plugins → Gemini NotebookLM Studio**.
 2. The plugin automatically detects `nlm` in standard locations (`~/.local/bin/nlm`, `%USERPROFILE%\.local\bin\nlm.exe`, or system `PATH`).
-3. You can also click **Auto-detect path**, **Test connection**, or manually enter a custom path to the `nlm` executable.
+3. You can also select **Auto-detect path**, **Test connection**, or manually enter a custom path to the `nlm` executable.
+
+---
+
+### 🔒 Privacy & External Service Disclosure
+
+- **No Hidden Telemetry**: This plugin does not collect analytics, usage telemetry, or background tracking data.
+- **Google NotebookLM Transmission**: When you explicitly upload a Vault file, ask a question with active/attached `@` context files, or start a Studio artifact, the selected files and prompts are transmitted via the local `nlm` CLI to your authenticated **Google NotebookLM** account (`https://notebooklm.google.com/`).
+- **Local Vault Scope**: Downloaded artifacts and settings are stored strictly inside your local Obsidian vault.
 
 ---
 
@@ -107,6 +115,14 @@ Es öffnet sich ein Browserfenster zur Anmeldung bei deinem Google-Konto.
 1. Öffne in Obsidian **Einstellungen → Community-Plugins → Gemini NotebookLM Studio**.
 2. Das Plugin erkennt `nlm` in den Standardpfaden (`~/.local/bin/nlm` bzw. `%USERPROFILE%\.local\bin\nlm.exe`) automatisch.
 3. Über die Status-Karte in den Einstellungen kannst du jederzeit **Verbindung prüfen**, **Pfad automatisch erkennen** oder manuell einen eigenen Pfad zu `nlm` / `nlm.exe` eintragen.
+
+---
+
+### 🔒 Datenschutz & Hinweis zu externen Diensten
+
+- **Keine Telemetrie**: Das Plugin erhebt keinerlei Nutzungsstatistiken, Tracking-Daten oder Telemetrie.
+- **Datenübertragung an Google NotebookLM**: Wenn du aktiv Dateien hochlädst, Fragen mit einbezogenen Notizen/`@`-Kontextdateien stellst oder Studio-Artefakte startest, werden die ausgewählten Vault-Dateien und Prompts lokal über das `nlm`-CLI-Tool an dein angemeldetes **Google NotebookLM**-Konto (`https://notebooklm.google.com/`) übertragen.
+- **Lokaler Dateizugriff**: Heruntergeladene Artefakte werden ausschließlich innerhalb deines aktuellen Obsidian-Vaults gespeichert.
 
 ---
 

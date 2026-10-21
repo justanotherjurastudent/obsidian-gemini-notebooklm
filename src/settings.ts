@@ -50,6 +50,11 @@ export class NotebookLMSettingTab extends PluginSettingTab {
 		s3.createEl('strong', { text: i18n.settingsStep3Title });
 		s3.createSpan({ text: i18n.settingsStep3Desc });
 
+		guideCard.createEl('p', {
+			cls: 'nlm-settings-privacy-note',
+			text: i18n.settingsPrivacyNote,
+		});
+
 		const statusBox = guideCard.createDiv({
 			cls: 'nlm-settings-status-box is-checking',
 			text: i18n.settingsStatusChecking,

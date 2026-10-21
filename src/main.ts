@@ -35,7 +35,8 @@ export default class NotebookLMPlugin extends Plugin {
 			},
 			() => this.settings.autoInsertLinkIntoNote,
 			() => this.settings.convertMindmapToMermaid,
-			() => this.settings.uiLanguage
+			() => this.settings.uiLanguage,
+			(id) => this.registerInterval(id)
 		);
 
 		this.registerView(

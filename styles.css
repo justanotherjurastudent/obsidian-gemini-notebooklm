@@ -1046,6 +1046,13 @@
 	user-select: all;
 }
 
+.nlm-settings-privacy-note {
+	margin: 2px 0 0 0;
+	font-size: 11.5px;
+	line-height: 1.4;
+	color: var(--text-muted);
+}
+
 .nlm-settings-status-box {
 	padding: 8px 12px;
 	border-radius: 6px;

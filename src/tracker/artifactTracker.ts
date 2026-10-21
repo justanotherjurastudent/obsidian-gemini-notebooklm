@@ -19,6 +19,7 @@ export class ArtifactTracker {
 	private autoInsertLink: () => boolean;
 	private convertMindmap: () => boolean;
 	private getLang: () => UILanguage;
+	private registerIntervalFn: (id: number) => number;
 
 	constructor(
 		app: App,
@@ -27,7 +28,8 @@ export class ArtifactTracker {
 		saveJobs: (jobs: ArtifactJob[]) => Promise<void>,
 		autoInsertLink: () => boolean,
 		convertMindmap: () => boolean,
-		getLang: () => UILanguage
+		getLang: () => UILanguage,
+		registerIntervalFn: (id: number) => number = (id) => id
 	) {
 		this.app = app;
 		this.bridge = bridge;
@@ -36,6 +38,7 @@ export class ArtifactTracker {
 		this.autoInsertLink = autoInsertLink;
 		this.convertMindmap = convertMindmap;
 		this.getLang = getLang;
+		this.registerIntervalFn = registerIntervalFn;
 	}
 
 	public onUpdate(cb: () => void): () => void {
@@ -56,9 +59,11 @@ export class ArtifactTracker {
 	public startPolling(intervalSeconds = 15): void {
 		this.stopPolling();
 		const ms = Math.max(8, intervalSeconds) * 1000;
-		this.intervalId = window.setInterval(() => {
-			void this.checkPendingJobs();
-		}, ms);
+		this.intervalId = this.registerIntervalFn(
+			window.setInterval(() => {
+				void this.checkPendingJobs();
+			}, ms)
+		);
 	}
 
 	public stopPolling(): void {
