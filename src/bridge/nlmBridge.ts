@@ -2,7 +2,6 @@ import { execFile, spawn } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { promisify } from 'util';
 import {
 	ArtifactCreateOptions,
 	ArtifactType,
@@ -13,7 +12,39 @@ import {
 	StudioArtifactStatus,
 } from '../types';
 
-const execFileAsync = promisify(execFile);
+interface ExecFileResult {
+	stdout: string;
+	stderr: string;
+}
+
+function runExecFile(
+	file: string,
+	args: string[],
+	options: {
+		timeout?: number;
+		maxBuffer?: number;
+		windowsHide?: boolean;
+		env?: NodeJS.ProcessEnv;
+	}
+): Promise<ExecFileResult> {
+	return new Promise((resolve, reject) => {
+		execFile(file, args, options, (error, stdout, stderr) => {
+			if (error) {
+				const details =
+					(typeof stderr === 'string' && stderr.trim()) ||
+					(typeof stdout === 'string' && stdout.trim()) ||
+					error.message;
+				const wrappedError = new Error(details);
+				reject(wrappedError);
+			} else {
+				resolve({
+					stdout: typeof stdout === 'string' ? stdout : '',
+					stderr: typeof stderr === 'string' ? stderr : '',
+				});
+			}
+		});
+	});
+}
 
 export class NlmBridge {
 	private customPath: string;
@@ -28,11 +59,11 @@ export class NlmBridge {
 	}
 
 	public detectNlmPath(): string | null {
-		const isWin = process.platform === 'win32';
-		const home = os.homedir();
-		const binNames = isWin ? ['nlm.exe', 'nlm'] : ['nlm'];
+		const isWin: boolean = typeof process !== 'undefined' && process.platform === 'win32';
+		const home: string = typeof os.homedir === 'function' ? os.homedir() : '';
+		const binNames: string[] = isWin ? ['nlm.exe', 'nlm'] : ['nlm'];
 
-		const candidateDirs = [
+		const candidateDirs: string[] = [
 			path.join(home, '.local', 'bin'),
 			isWin
 				? path.join(home, 'AppData', 'Roaming', 'uv', 'tools', 'notebooklm-mcp-cli', 'Scripts')
@@ -45,8 +76,10 @@ export class NlmBridge {
 		];
 
 		// Also scan PATH directories
-		const pathEnv = process.env.PATH || '';
-		const pathDirs = pathEnv.split(path.delimiter).filter(Boolean);
+		const envObj = typeof process !== 'undefined' ? process.env : {};
+		const pathEnv = envObj['PATH'] || envObj['Path'] || '';
+		const pathDelimiter = path.delimiter || (isWin ? ';' : ':');
+		const pathDirs: string[] = pathEnv.split(pathDelimiter).filter(Boolean);
 		for (const d of pathDirs) {
 			if (!candidateDirs.includes(d)) {
 				candidateDirs.push(d);
@@ -55,7 +88,7 @@ export class NlmBridge {
 
 		for (const dir of candidateDirs) {
 			for (const bin of binNames) {
-				const full = path.join(dir, bin);
+				const full: string = path.join(dir, bin);
 				if (fs.existsSync(full)) {
 					this.cachedDetectedPath = full;
 					return full;
@@ -123,7 +156,7 @@ export class NlmBridge {
 	private async runNlm(args: string[], timeoutMs = 180000): Promise<string> {
 		const exe = this.getEffectivePath();
 		try {
-			const { stdout } = await execFileAsync(exe, args, {
+			const { stdout } = await runExecFile(exe, args, {
 				timeout: timeoutMs,
 				maxBuffer: 25 * 1024 * 1024,
 				windowsHide: true,

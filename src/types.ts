@@ -71,7 +71,7 @@ export interface ArtifactJob {
 	label: string;
 	focusPrompt?: string;
 	targetFolderRel: string;
-	targetFolderAbs: string;
+	targetFolderAbs?: string;
 	sourceNoteName: string;
 	sourceNotePath: string;
 	createdAt: number;

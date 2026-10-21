@@ -1,6 +1,4 @@
-import * as path from 'path';
-import * as fs from 'fs';
-import { App, Notice, TFile } from 'obsidian';
+import { App, FileSystemAdapter, Notice, TFile, normalizePath } from 'obsidian';
 import { ArtifactJob, ArtifactType } from '../types';
 import { NlmBridge } from '../bridge/nlmBridge';
 import { UILanguage, resolveUILanguage, t } from '../i18n';
@@ -223,6 +221,8 @@ export class ArtifactTracker {
 
 	public async downloadCompletedJob(job: ArtifactJob): Promise<boolean> {
 		const i18n = t(this.getLang());
+		const adapter = this.app.vault.adapter;
+
 		try {
 			const shouldConvertMindmap =
 				job.type === 'mind_map' && this.convertMindmap();
@@ -231,65 +231,96 @@ export class ArtifactTracker {
 			const baseNote = this.sanitizeFileName(job.sourceNoteName || 'NotebookLM');
 			const dateSuffix = this.formatLocalTimestamp(job.createdAt);
 
-			if (!fs.existsSync(job.targetFolderAbs)) {
-				fs.mkdirSync(job.targetFolderAbs, { recursive: true });
+			const folderRel = normalizePath(job.targetFolderRel || '');
+			if (folderRel && folderRel !== '/' && folderRel !== '.') {
+				const folderExists = await adapter.exists(folderRel);
+				if (!folderExists) {
+					await adapter.mkdir(folderRel);
+				}
 			}
 
 			let fileName = `${baseNote} - ${typeLabel} (${dateSuffix})${ext}`;
-			let outputAbsPath = path.join(job.targetFolderAbs, fileName);
+			let relFilePath = normalizePath(
+				folderRel && folderRel !== '/' && folderRel !== '.'
+					? `${folderRel}/${fileName}`
+					: fileName
+			);
 			let counter = 2;
-			while (fs.existsSync(outputAbsPath)) {
+			while (await adapter.exists(relFilePath)) {
 				fileName = `${baseNote} - ${typeLabel} (${dateSuffix}_${counter})${ext}`;
-				outputAbsPath = path.join(job.targetFolderAbs, fileName);
+				relFilePath = normalizePath(
+					folderRel && folderRel !== '/' && folderRel !== '.'
+						? `${folderRel}/${fileName}`
+						: fileName
+				);
 				counter++;
 			}
+
+			const outputAbsPath =
+				adapter instanceof FileSystemAdapter
+					? adapter.getFullPath(relFilePath)
+					: relFilePath;
 
 			new Notice(i18n.noticeDownloadingArtifact(fileName));
 
 			if (shouldConvertMindmap) {
-				const tempJsonPath = `${outputAbsPath}.tmp.json`;
+				const tempRelPath = normalizePath(`${relFilePath}.tmp.json`);
+				const tempAbsPath =
+					adapter instanceof FileSystemAdapter
+						? adapter.getFullPath(tempRelPath)
+						: tempRelPath;
+
 				try {
 					await this.bridge.downloadArtifact(
 						job.notebookId,
 						job.id,
 						job.type,
-						tempJsonPath
+						tempAbsPath
 					);
 				} catch (dlErr) {
-					if (fs.existsSync(tempJsonPath)) {
+					if (await adapter.exists(tempRelPath)) {
 						try {
-							fs.unlinkSync(tempJsonPath);
+							await adapter.remove(tempRelPath);
 						} catch {
 							// Ignore cleanup error
 						}
 					}
 					throw dlErr;
 				}
+
 				try {
-					const rawJson = fs.readFileSync(tempJsonPath, 'utf-8');
+					const rawJson = await adapter.read(tempRelPath);
 					const markdownContent = convertMindmapJsonToMarkdown(
 						rawJson,
 						`${baseNote} - ${typeLabel}`,
 						resolveUILanguage(this.getLang())
 					);
-					fs.writeFileSync(outputAbsPath, markdownContent, 'utf-8');
-					fs.unlinkSync(tempJsonPath);
+					await adapter.write(relFilePath, markdownContent);
+					await adapter.remove(tempRelPath);
 				} catch (convErr) {
 					console.warn(
 						'Mindmap JSON to Mermaid conversion failed, keeping JSON file:',
 						convErr
 					);
 					let jsonFileName = fileName.replace(/\.md$/, '.json');
-					let jsonAbsPath = path.join(job.targetFolderAbs, jsonFileName);
+					let jsonRelPath = normalizePath(
+						folderRel && folderRel !== '/' && folderRel !== '.'
+							? `${folderRel}/${jsonFileName}`
+							: jsonFileName
+					);
 					let fallbackCounter = 2;
-					while (fs.existsSync(jsonAbsPath)) {
+					while (await adapter.exists(jsonRelPath)) {
 						jsonFileName = `${baseNote} - ${typeLabel} (${dateSuffix}_${fallbackCounter}).json`;
-						jsonAbsPath = path.join(job.targetFolderAbs, jsonFileName);
+						jsonRelPath = normalizePath(
+							folderRel && folderRel !== '/' && folderRel !== '.'
+								? `${folderRel}/${jsonFileName}`
+								: jsonFileName
+						);
 						fallbackCounter++;
 					}
 					fileName = jsonFileName;
-					outputAbsPath = jsonAbsPath;
-					fs.renameSync(tempJsonPath, outputAbsPath);
+					relFilePath = jsonRelPath;
+					await adapter.rename(tempRelPath, jsonRelPath);
 				}
 			} else {
 				await this.bridge.downloadArtifact(
@@ -303,9 +334,7 @@ export class ArtifactTracker {
 			job.downloaded = true;
 			job.status = 'completed';
 			job.error = undefined;
-			job.downloadedFilePath = job.targetFolderRel
-				? `${job.targetFolderRel}/${fileName}`
-				: fileName;
+			job.downloadedFilePath = relFilePath;
 
 			new Notice(
 				i18n.noticeArtifactSaved(typeLabel, job.downloadedFilePath),

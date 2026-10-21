@@ -1,4 +1,3 @@
-import * as path from 'path';
 import {
 	FileSystemAdapter,
 	ItemView,
@@ -663,22 +662,16 @@ export class NotebookLMSidebarView extends ItemView {
 
 	private getActiveNoteFolderInfo(): {
 		folderRel: string;
-		folderAbs: string;
 		noteName: string;
 		notePath: string;
 	} {
-		const adapter = this.app.vault.adapter;
-		const basePath =
-			adapter instanceof FileSystemAdapter ? adapter.getBasePath() : '';
 		const file = this.app.workspace.getActiveFile() || this.activeNoteFile;
 
 		if (file) {
 			const folderRel =
 				file.parent?.path && file.parent.path !== '/' ? file.parent.path : '';
-			const folderAbs = folderRel ? path.join(basePath, folderRel) : basePath;
 			return {
 				folderRel,
-				folderAbs,
 				noteName: file.basename,
 				notePath: file.path,
 			};
@@ -686,7 +679,6 @@ export class NotebookLMSidebarView extends ItemView {
 
 		return {
 			folderRel: '',
-			folderAbs: basePath,
 			noteName: 'NotebookLM',
 			notePath: '',
 		};
@@ -1021,7 +1013,6 @@ export class NotebookLMSidebarView extends ItemView {
 		options: ArtifactCreateOptions,
 		folderInfo: {
 			folderRel: string;
-			folderAbs: string;
 			noteName: string;
 			notePath: string;
 		}
@@ -1033,24 +1024,11 @@ export class NotebookLMSidebarView extends ItemView {
 		const nbObj = this.notebooks.find((n) => n.id === nbId);
 		const nbTitle = nbObj ? nbObj.title : 'Notebook';
 
-		const adapter = this.app.vault.adapter;
-		const basePath =
-			adapter instanceof FileSystemAdapter ? adapter.getBasePath() : '';
-
 		const rawChosenRel =
 			options.targetFolderRel !== undefined
 				? options.targetFolderRel.replace(/^\/+|\/+$/g, '')
 				: folderInfo.folderRel;
-		const normalizedRel = rawChosenRel ? normalizePath(rawChosenRel) : '';
-		const resolvedBase = path.resolve(basePath);
-		const candidateAbs = normalizedRel
-			? path.resolve(basePath, normalizedRel)
-			: resolvedBase;
-		const isInsideVault =
-			candidateAbs === resolvedBase ||
-			candidateAbs.startsWith(`${resolvedBase}${path.sep}`);
-		const chosenFolderRel = isInsideVault ? normalizedRel : folderInfo.folderRel;
-		const chosenFolderAbs = isInsideVault ? candidateAbs : folderInfo.folderAbs;
+		const chosenFolderRel = rawChosenRel ? normalizePath(rawChosenRel) : '';
 
 		try {
 			const { sourceIds } = await this.ensureContextFilesUploaded();
@@ -1071,7 +1049,6 @@ export class NotebookLMSidebarView extends ItemView {
 				label: `${typeLabel} (${folderInfo.noteName})`,
 				focusPrompt: options.focus,
 				targetFolderRel: chosenFolderRel,
-				targetFolderAbs: chosenFolderAbs,
 				sourceNoteName: folderInfo.noteName,
 				sourceNotePath: folderInfo.notePath,
 				createdAt: Date.now(),

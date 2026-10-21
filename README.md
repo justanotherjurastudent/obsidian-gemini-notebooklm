@@ -49,11 +49,14 @@ A browser window will open so you can sign in to your Google account.
 
 ---
 
-### 🔒 Privacy & External Service Disclosure
+### 🔒 Privacy, Security & Permissions
 
 - **No Hidden Telemetry**: This plugin does not collect analytics, usage telemetry, or background tracking data.
-- **Google NotebookLM Transmission**: When you explicitly upload a Vault file, ask a question with active/attached `@` context files, or start a Studio artifact, the selected files and prompts are transmitted via the local `nlm` CLI to your authenticated **Google NotebookLM** account (`https://notebooklm.google.com/`).
-- **Local Vault Scope**: Downloaded artifacts and settings are stored strictly inside your local Obsidian vault.
+- **Local Vault Storage**: All downloaded artifacts, mind maps, and settings are stored strictly inside your local Obsidian vault using the official Obsidian Vault API (`app.vault.adapter`).
+- **Subprocess Execution (`child_process.execFile`)**: The plugin calls the local `nlm` binary using `execFile` with direct argument arrays (no shell string evaluation or shell injection risk) exclusively to talk to your local `notebooklm-mcp-cli` instance.
+- **Vault File Enumeration**: `app.vault.getFiles()` is used solely to populate the `@` file picker when attaching context documents.
+- **Clipboard Access**: Write-only; triggered only when you explicitly click the "Copy" button on a NotebookLM response.
+- **Google NotebookLM Transmission**: When you explicitly upload a note, ask a question with context files, or generate an artifact, those specific documents and prompts are sent through `nlm` to your authenticated Google NotebookLM account (`https://notebooklm.google.com/`).
 
 ---
 
@@ -118,11 +121,14 @@ Es öffnet sich ein Browserfenster zur Anmeldung bei deinem Google-Konto.
 
 ---
 
-### 🔒 Datenschutz & Hinweis zu externen Diensten
+### 🔒 Datenschutz, Sicherheit & Berechtigungen
 
-- **Keine Telemetrie**: Das Plugin erhebt keinerlei Nutzungsstatistiken, Tracking-Daten oder Telemetrie.
-- **Datenübertragung an Google NotebookLM**: Wenn du aktiv Dateien hochlädst, Fragen mit einbezogenen Notizen/`@`-Kontextdateien stellst oder Studio-Artefakte startest, werden die ausgewählten Vault-Dateien und Prompts lokal über das `nlm`-CLI-Tool an dein angemeldetes **Google NotebookLM**-Konto (`https://notebooklm.google.com/`) übertragen.
-- **Lokaler Dateizugriff**: Heruntergeladene Artefakte werden ausschließlich innerhalb deines aktuellen Obsidian-Vaults gespeichert.
+- **Keine Telemetrie**: Das Plugin erhebt keinerlei Nutzungsstatistiken, Tracking-Daten oder Telemetrie im Hintergrund.
+- **Lokaler Vault-Zugriff**: Alle heruntergeladenen Artefakte, Mindmaps und Einstellungen werden ausschließlich innerhalb deines Obsidian-Vaults über die offizielle Obsidian Vault API (`app.vault.adapter`) gespeichert.
+- **Lokale Befehlsausführung (`child_process.execFile`)**: Das Plugin ruft das lokale `nlm`-Programm per `execFile` mit direkten Parameter-Arrays auf (ohne Shell-String-Evaluation oder Shell-Injection-Risiko), ausschließlich zur Kommunikation mit deiner lokalen `notebooklm-mcp-cli`-Installation.
+- **Vault-Dateiauswahl**: `app.vault.getFiles()` wird ausschließlich genutzt, um die Dateiauswahl im `@`-Kontext-Picker anzuzeigen.
+- **Zwischenablage**: Nur schreibend; wird nur ausgelöst, wenn du bei einer NotebookLM-Antwort explizit auf „Kopieren“ klickst.
+- **Datenübertragung an Google NotebookLM**: Wenn du aktiv Dateien hochlädst, Fragen mit einbezogenen Notizen/Kontextdateien stellst oder Studio-Artefakte startest, werden diese spezifischen Dokumente und Prompts lokal über `nlm` an dein angemeldetes Google NotebookLM-Konto (`https://notebooklm.google.com/`) übertragen.
 
 ---
 

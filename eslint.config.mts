@@ -18,6 +18,7 @@ export default defineConfig(
 		languageOptions: {
 			globals: {
 				...globals.browser,
+				...globals.node,
 			},
 			parserOptions: {
 				projectService: {
@@ -29,4 +30,9 @@ export default defineConfig(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		rules: {
+			'obsidianmd/settings-tab/prefer-setting-definitions': 'off',
+		},
+	},
 );
