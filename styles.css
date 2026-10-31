@@ -395,6 +395,217 @@
 }
 
 /* --------------------------------------------------------------------------
+   3b. STUDIO ARTIFACTS BROWSER DRAWER (Play / Download / Open / Delete)
+   -------------------------------------------------------------------------- */
+.nlm-studio-drawer-section {
+	background: var(--background-primary-alt);
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.nlm-studio-drawer-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 7px 12px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.nlm-studio-drawer-header:hover {
+	background: var(--background-modifier-hover);
+}
+
+.nlm-studio-drawer-header-left {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--text-muted);
+}
+
+.nlm-studio-drawer-icon {
+	display: inline-flex;
+	align-items: center;
+	color: var(--interactive-accent);
+}
+
+.nlm-studio-drawer-icon svg {
+	width: 13px;
+	height: 13px;
+}
+
+.nlm-studio-drawer-refresh-btn {
+	background: transparent;
+	border: none;
+	padding: 2px;
+	height: 22px;
+	width: 22px;
+	color: var(--text-muted);
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 5px;
+}
+
+.nlm-studio-drawer-refresh-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.nlm-studio-drawer-refresh-btn svg {
+	width: 13px;
+	height: 13px;
+}
+
+.nlm-studio-drawer-list {
+	max-height: 230px;
+	overflow-y: auto;
+	padding: 6px 12px 10px 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	border-top: 1px solid var(--background-modifier-border-hover);
+}
+
+.nlm-studio-drawer-list.is-collapsed {
+	display: none;
+}
+
+.nlm-studio-item-card {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 7px;
+	padding: 7px 9px;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.nlm-studio-item-card.is-running {
+	border-color: rgba(var(--interactive-accent-rgb), 0.45);
+	background: linear-gradient(
+		90deg,
+		var(--background-primary) 0%,
+		rgba(var(--interactive-accent-rgb), 0.08) 50%,
+		var(--background-primary) 100%
+	);
+	background-size: 200% 100%;
+	animation: nlm-shimmer 2.6s infinite linear;
+}
+
+.nlm-studio-item-top {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.nlm-studio-item-icon {
+	display: inline-flex;
+	align-items: center;
+	color: var(--interactive-accent);
+	flex-shrink: 0;
+}
+
+.nlm-studio-item-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.nlm-studio-item-title {
+	flex: 1;
+	font-size: 11.5px;
+	font-weight: 600;
+	color: var(--text-normal);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.nlm-studio-status-pill {
+	font-size: 10px;
+	font-weight: 500;
+	padding: 1px 6px;
+	border-radius: 8px;
+	flex-shrink: 0;
+	background: var(--background-secondary);
+	color: var(--text-muted);
+}
+
+.nlm-studio-status-pill.is-completed {
+	background: rgba(16, 185, 129, 0.14);
+	color: #10b981;
+}
+
+.nlm-studio-status-pill.is-failed {
+	background: rgba(239, 68, 68, 0.14);
+	color: var(--text-error);
+}
+
+.nlm-studio-item-actions {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	flex-wrap: wrap;
+}
+
+.nlm-studio-action-btn {
+	font-size: 11px;
+	padding: 0 8px;
+	height: 23px;
+	border-radius: 5px;
+	cursor: pointer;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.nlm-studio-action-btn:hover,
+.nlm-studio-action-btn.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+.nlm-studio-del-btn {
+	margin-left: auto;
+	background: transparent;
+	border: none;
+	padding: 2px;
+	height: 22px;
+	width: 22px;
+	color: var(--text-faint);
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 4px;
+}
+
+.nlm-studio-del-btn:hover {
+	color: var(--text-error);
+	background: rgba(239, 68, 68, 0.12);
+}
+
+.nlm-studio-del-btn svg {
+	width: 12px;
+	height: 12px;
+}
+
+.nlm-studio-audio-player-wrap {
+	margin-top: 3px;
+	width: 100%;
+}
+
+.nlm-studio-audio-player {
+	width: 100%;
+	height: 32px;
+	border-radius: 6px;
+}
+
+/* --------------------------------------------------------------------------
    4. ARTIFACT JOBS & AUTO-DOWNLOAD PANEL + ANIMATIONS
    -------------------------------------------------------------------------- */
 .nlm-artifacts-panel {
@@ -631,6 +842,13 @@
 	gap: 10px;
 }
 
+.nlm-chat-bubble,
+.nlm-chat-content,
+.nlm-chat-refs-list {
+	user-select: text;
+	-webkit-user-select: text;
+}
+
 .nlm-chat-empty {
 	margin: auto;
 	text-align: center;
@@ -672,6 +890,7 @@
 	line-height: 1.45;
 	word-break: break-word;
 	animation: nlm-fade-slide-up 0.18s ease-out;
+	cursor: text;
 }
 
 @keyframes nlm-fade-slide-up {
@@ -779,11 +998,16 @@
 	font-size: 11px;
 }
 
+.nlm-chat-refs summary,
+.nlm-msg-action-btn {
+	user-select: none;
+	-webkit-user-select: none;
+}
+
 .nlm-chat-refs summary {
 	cursor: pointer;
 	color: var(--interactive-accent);
 	font-weight: 500;
-	user-select: none;
 }
 
 .nlm-chat-refs-list {
@@ -1086,6 +1310,7 @@
 
 @media (prefers-reduced-motion: reduce) {
 	.nlm-artifact-card.is-running,
+	.nlm-studio-item-card.is-running,
 	.nlm-equalizer span,
 	.nlm-status-spinner,
 	.nlm-chat-bubble,

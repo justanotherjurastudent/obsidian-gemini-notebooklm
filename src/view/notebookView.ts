@@ -17,6 +17,7 @@ import {
 	NlmHealthStatus,
 	NotebookInfo,
 	SourceInfo,
+	StudioArtifactStatus,
 } from '../types';
 import {
 	ArtifactConfigModal,
@@ -25,6 +26,7 @@ import {
 } from '../suggest/fileSuggestModal';
 import { NOTEBOOKLM_ICON_ID } from '../icons/notebooklmLogo';
 import { t, TranslationStrings } from '../i18n';
+import { isSupportedArtifactType } from '../utils/artifactParser';
 
 export const VIEW_TYPE_NOTEBOOKLM = 'gemini-notebooklm-sidebar-view';
 const MAX_CHAT_MESSAGES = 50;
@@ -33,10 +35,19 @@ export class NotebookLMSidebarView extends ItemView {
 	private plugin: NotebookLMPlugin;
 	private notebooks: NotebookInfo[] = [];
 	private sources: SourceInfo[] = [];
+	private studioArtifacts: StudioArtifactStatus[] = [];
+	private studioArtifactsLoaded = false;
 	private contextFiles: TFile[] = [];
 	private includeActiveNote = true;
 	private activeNoteFile: TFile | null = null;
 	private isSourcesExpanded = false;
+	private isStudioDrawerExpanded = false;
+	private isViewOpen = false;
+	private postChatStudioCheckTimer: number | null = null;
+	private playingArtifactId: string | null = null;
+	private activeAudioEl: HTMLAudioElement | null = null;
+	private activeAudioArtifactId: string | null = null;
+	private currentLoadedNotebookId: string | null = null;
 	private isLoadingNotebooks = false;
 	private isSendingChat = false;
 	private uploadQueue: Promise<unknown> = Promise.resolve();
@@ -47,6 +58,10 @@ export class NotebookLMSidebarView extends ItemView {
 	private notebookSelectEl!: HTMLSelectElement;
 	private sourcesContainerEl!: HTMLElement;
 	private sourcesCountBadgeEl!: HTMLElement;
+	private studioDrawerHeaderEl!: HTMLElement;
+	private studioDrawerListEl!: HTMLElement;
+	private studioDrawerBadgeEl!: HTMLElement;
+	private studioDrawerChevronEl!: HTMLElement;
 	private artifactsContainerEl!: HTMLElement;
 	private chatFeedEl!: HTMLElement;
 	private contextChipsEl!: HTMLElement;
@@ -79,6 +94,7 @@ export class NotebookLMSidebarView extends ItemView {
 	}
 
 	async onOpen(): Promise<void> {
+		this.isViewOpen = true;
 		this.activeNoteFile = this.app.workspace.getActiveFile();
 		this.buildUI();
 
@@ -95,27 +111,62 @@ export class NotebookLMSidebarView extends ItemView {
 
 		this.unsubscribeTracker = this.plugin.tracker.onUpdate(() => {
 			this.renderArtifactsPanel();
+			this.renderStudioDrawerList();
 		});
 
 		await this.loadNotebooksAndSources();
 		this.renderChatFeed();
 		this.renderArtifactsPanel();
+		this.renderStudioDrawerList();
 	}
 
 	async onClose(): Promise<void> {
+		this.isViewOpen = false;
+		if (this.postChatStudioCheckTimer !== null) {
+			window.clearTimeout(this.postChatStudioCheckTimer);
+			this.postChatStudioCheckTimer = null;
+		}
+		this.stopAudioPlayback();
 		if (this.unsubscribeTracker) {
 			this.unsubscribeTracker();
 			this.unsubscribeTracker = null;
 		}
 	}
 
+	private stopAudioPlayback(): void {
+		this.playingArtifactId = null;
+		if (this.activeAudioEl) {
+			this.activeAudioEl.pause();
+			this.activeAudioEl.removeAttribute('src');
+			this.activeAudioEl = null;
+		}
+		this.activeAudioArtifactId = null;
+	}
+
 	public rebuildUI(): void {
+		const wasPlaying = Boolean(
+			this.activeAudioEl && !this.activeAudioEl.paused
+		);
+		const savedTime = this.activeAudioEl ? this.activeAudioEl.currentTime : 0;
+
 		this.buildUI();
 		this.renderOnboardingBanner();
 		this.renderNotebookSelect();
 		this.renderSourcesList();
+		this.renderStudioDrawerList();
 		this.renderChatFeed();
 		this.renderArtifactsPanel();
+
+		if (this.activeAudioEl) {
+			if (this.activeAudioEl.currentTime === 0 && savedTime > 0) {
+				this.activeAudioEl.currentTime = savedTime;
+			}
+			if (wasPlaying && this.activeAudioEl.paused) {
+				void this.activeAudioEl.play().catch(() => {
+					// Ignore autoplay interruption
+				});
+			}
+		}
 	}
 
 	private buildUI(): void {
@@ -170,10 +221,11 @@ export class NotebookLMSidebarView extends ItemView {
 		this.notebookSelectEl.addEventListener('change', () => {
 			void (async () => {
 				this.plugin.settings.activeNotebookId = this.notebookSelectEl.value;
-				await this.plugin.saveSettings();
-				await this.loadSourcesForActiveNotebook();
+				this.stopAudioPlayback();
 				this.renderChatFeed();
 				this.renderArtifactsPanel();
+				await this.plugin.saveSettings();
+				await this.loadSourcesForActiveNotebook();
 			})();
 		});
 
@@ -184,7 +236,14 @@ export class NotebookLMSidebarView extends ItemView {
 
 		// 2. COLLAPSIBLE SOURCES DRAWER
 		const sourcesSection = container.createDiv({ cls: 'nlm-sources-section' });
-		const sourcesHeader = sourcesSection.createDiv({ cls: 'nlm-sources-header' });
+		const sourcesHeader = sourcesSection.createDiv({
+			cls: 'nlm-sources-header',
+			attr: {
+				role: 'button',
+				tabindex: '0',
+				'aria-expanded': String(this.isSourcesExpanded),
+			},
+		});
 
 		const sourcesHeaderLeft = sourcesHeader.createDiv({ cls: 'nlm-sources-header-left' });
 		const chevron = sourcesHeaderLeft.createSpan({ cls: 'nlm-chevron' });
@@ -208,24 +267,33 @@ export class NotebookLMSidebarView extends ItemView {
 			cls: `nlm-sources-list ${this.isSourcesExpanded ? '' : 'is-collapsed'}`,
 		});
 
-		sourcesHeader.addEventListener('click', () => {
+		const toggleSourcesDrawer = () => {
 			this.isSourcesExpanded = !this.isSourcesExpanded;
 			this.sourcesContainerEl.toggleClass('is-collapsed', !this.isSourcesExpanded);
+			sourcesHeader.setAttr('aria-expanded', String(this.isSourcesExpanded));
 			setIcon(chevron, this.isSourcesExpanded ? 'chevron-down' : 'chevron-right');
+		};
+		sourcesHeader.addEventListener('click', toggleSourcesDrawer);
+		sourcesHeader.addEventListener('keydown', (e) => {
+			if (e.target !== sourcesHeader) return;
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				toggleSourcesDrawer();
+			}
 		});
 
 		// 3. STUDIO ARTIFACT QUICK-BAR (responsive wrapping grid, no clipping)
 		const studioBar = container.createDiv({ cls: 'nlm-studio-bar' });
 		const studioGrid = studioBar.createDiv({ cls: 'nlm-studio-grid' });
 
-		const studioButtons: Array<{ type: ArtifactType; icon: string; label: string }> = [
-			{ type: 'audio', icon: 'headphones', label: i18n.studioAudio },
-			{ type: 'report', icon: 'file-text', label: i18n.studioReport },
-			{ type: 'quiz', icon: 'help-circle', label: i18n.studioQuiz },
-			{ type: 'flashcards', icon: 'layers', label: i18n.studioFlashcards },
-			{ type: 'mind_map', icon: 'git-fork', label: i18n.studioMindmap },
-			{ type: 'slide_deck', icon: 'presentation', label: i18n.studioSlides },
-			{ type: 'infographic', icon: 'image', label: i18n.studioInfographic },
+		const studioButtons: Array<{ type: ArtifactType; label: string }> = [
+			{ type: 'audio', label: i18n.studioAudio },
+			{ type: 'report', label: i18n.studioReport },
+			{ type: 'quiz', label: i18n.studioQuiz },
+			{ type: 'flashcards', label: i18n.studioFlashcards },
+			{ type: 'mind_map', label: i18n.studioMindmap },
+			{ type: 'slide_deck', label: i18n.studioSlides },
+			{ type: 'infographic', label: i18n.studioInfographic },
 		];
 
 		for (const btnInfo of studioButtons) {
@@ -234,10 +302,86 @@ export class NotebookLMSidebarView extends ItemView {
 				attr: { 'aria-label': i18n.studioGenerateTooltip(btnInfo.label) },
 			});
 			const ic = btn.createSpan({ cls: 'nlm-studio-pill-icon' });
-			setIcon(ic, btnInfo.icon);
+			setIcon(ic, this.getIconForArtifactType(btnInfo.type));
 			btn.createSpan({ text: btnInfo.label });
 			btn.addEventListener('click', () => this.openArtifactModal(btnInfo.type));
 		}
+
+		// 3b. COLLAPSIBLE STUDIO ARTIFACTS BROWSER DRAWER
+		const studioDrawerSection = container.createDiv({ cls: 'nlm-studio-drawer-section' });
+		this.studioDrawerHeaderEl = studioDrawerSection.createDiv({
+			cls: 'nlm-studio-drawer-header',
+			attr: {
+				role: 'button',
+				tabindex: '0',
+				'aria-expanded': String(this.isStudioDrawerExpanded),
+			},
+		});
+
+		const studioHeaderLeft = this.studioDrawerHeaderEl.createDiv({
+			cls: 'nlm-studio-drawer-header-left',
+		});
+		this.studioDrawerChevronEl = studioHeaderLeft.createSpan({ cls: 'nlm-chevron' });
+		setIcon(
+			this.studioDrawerChevronEl,
+			this.isStudioDrawerExpanded ? 'chevron-down' : 'chevron-right'
+		);
+		const studioIcon = studioHeaderLeft.createSpan({ cls: 'nlm-studio-drawer-icon' });
+		setIcon(studioIcon, 'sparkles');
+		studioHeaderLeft.createSpan({
+			text: i18n.studioArtifactsDrawerTitle,
+			cls: 'nlm-studio-drawer-title',
+		});
+		this.studioDrawerBadgeEl = studioHeaderLeft.createSpan({
+			text: '0',
+			cls: 'nlm-badge',
+		});
+
+		const studioRefreshBtn = this.studioDrawerHeaderEl.createEl('button', {
+			cls: 'nlm-studio-drawer-refresh-btn',
+			attr: { 'aria-label': i18n.btnRefreshStudioTitle },
+		});
+		setIcon(studioRefreshBtn, 'refresh-cw');
+		studioRefreshBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			new Notice(i18n.noticeRefreshing);
+			void this.loadStudioArtifactsForActiveNotebook().then(() =>
+				this.plugin.tracker.checkPendingJobs()
+			);
+		});
+
+		this.studioDrawerListEl = studioDrawerSection.createDiv({
+			cls: `nlm-studio-drawer-list ${
+				this.isStudioDrawerExpanded ? '' : 'is-collapsed'
+			}`,
+		});
+
+		const toggleStudioDrawer = () => {
+			this.isStudioDrawerExpanded = !this.isStudioDrawerExpanded;
+			this.studioDrawerListEl.toggleClass(
+				'is-collapsed',
+				!this.isStudioDrawerExpanded
+			);
+			this.studioDrawerHeaderEl.setAttr(
+				'aria-expanded',
+				String(this.isStudioDrawerExpanded)
+			);
+			setIcon(
+				this.studioDrawerChevronEl,
+				this.isStudioDrawerExpanded ? 'chevron-down' : 'chevron-right'
+			);
+			if (this.isStudioDrawerExpanded) {
+				void this.loadStudioArtifactsForActiveNotebook();
+			}
+		};
+		this.studioDrawerHeaderEl.addEventListener('click', toggleStudioDrawer);
+		this.studioDrawerHeaderEl.addEventListener('keydown', (e) => {
+			if (e.target !== this.studioDrawerHeaderEl) return;
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				toggleStudioDrawer();
+			}
+		});
 
 		// 4. ACTIVE / COMPLETED ARTIFACT JOBS PANEL
 		this.artifactsContainerEl = container.createDiv({ cls: 'nlm-artifacts-panel' });
@@ -459,13 +603,41 @@ export class NotebookLMSidebarView extends ItemView {
 	public async loadSourcesForActiveNotebook(): Promise<void> {
 		const nbId = this.plugin.settings.activeNotebookId;
 		if (!nbId) {
+			this.currentLoadedNotebookId = null;
 			this.sources = [];
+			this.studioArtifacts = [];
+			this.studioArtifactsLoaded = false;
+			this.stopAudioPlayback();
 			this.renderSourcesList();
+			this.renderStudioDrawerList();
 			return;
 		}
 
+		if (this.currentLoadedNotebookId !== nbId) {
+			this.currentLoadedNotebookId = nbId;
+			this.sources = [];
+			this.studioArtifacts = [];
+			this.studioArtifactsLoaded = false;
+			this.stopAudioPlayback();
+			this.renderSourcesList();
+			this.renderStudioDrawerList();
+		}
+
 		try {
-			this.sources = await this.plugin.bridge.listSources(nbId);
+			const [sourcesList, studioResult] = await Promise.all([
+				this.plugin.bridge.listSources(nbId),
+				this.plugin.bridge
+					.getStudioStatus(nbId, true)
+					.then((list) => ({ ok: true, list }))
+					.catch(() => ({ ok: false, list: [] as StudioArtifactStatus[] })),
+			]);
+			if (this.plugin.settings.activeNotebookId !== nbId) {
+				return;
+			}
+			this.sources = sourcesList;
+			this.studioArtifacts = studioResult.list;
+			this.studioArtifactsLoaded = studioResult.ok;
+
 			if (!this.plugin.settings.uploadedFileMap[nbId]) {
 				this.plugin.settings.uploadedFileMap[nbId] = {};
 			}
@@ -473,9 +645,35 @@ export class NotebookLMSidebarView extends ItemView {
 				this.plugin.settings.uploadedFileMap[nbId][src.title] = src.id;
 			}
 			await this.plugin.saveSettings();
+			if (this.plugin.settings.activeNotebookId !== nbId) {
+				return;
+			}
 			this.renderSourcesList();
+			this.renderStudioDrawerList();
 		} catch (err) {
 			console.warn('Failed to load notebook sources:', err);
+		}
+	}
+
+	public async loadStudioArtifactsForActiveNotebook(): Promise<void> {
+		const nbId = this.plugin.settings.activeNotebookId;
+		if (!nbId) {
+			this.studioArtifacts = [];
+			this.studioArtifactsLoaded = false;
+			this.stopAudioPlayback();
+			this.renderStudioDrawerList();
+			return;
+		}
+		try {
+			const artifacts = await this.plugin.bridge.getStudioStatus(nbId, true);
+			if (this.plugin.settings.activeNotebookId !== nbId) {
+				return;
+			}
+			this.studioArtifacts = artifacts;
+			this.studioArtifactsLoaded = true;
+			this.renderStudioDrawerList();
+		} catch (err) {
+			console.warn('Failed to load studio artifacts:', err);
 		}
 	}
 
@@ -840,6 +1038,12 @@ export class NotebookLMSidebarView extends ItemView {
 
 			this.setStatusBanner(i18n.statusQueryingNotebook);
 
+			const queryStartedAt = Date.now();
+			const hadPreStudioSnapshot = this.studioArtifactsLoaded;
+			const preStudioIds = new Set(
+				this.studioArtifacts.map((a) => a.artifact_id || a.id)
+			);
+
 			const result = await this.plugin.bridge.queryNotebook(nbId, question, {
 				conversationId: history.conversationId,
 				sourceIds: sourceIds.length > 0 ? sourceIds : undefined,
@@ -861,14 +1065,38 @@ export class NotebookLMSidebarView extends ItemView {
 				history.messages = history.messages.slice(-MAX_CHAT_MESSAGES);
 			}
 			await this.plugin.saveSettings();
-		} catch (err: unknown) {
-			const msg = err instanceof Error ? err.message : String(err);
-			new Notice(i18n.noticeQueryError(msg));
-		} finally {
+
 			this.isSendingChat = false;
 			this.sendBtnEl.disabled = false;
 			this.setStatusBanner(null);
 			this.renderChatFeed();
+
+			// Wait ~3 seconds before checking studio status so Gemini NotebookLM has time
+			// to spawn any server-side Studio artifact triggered by the chat response.
+			if (this.postChatStudioCheckTimer !== null) {
+				window.clearTimeout(this.postChatStudioCheckTimer);
+			}
+			this.postChatStudioCheckTimer = window.setTimeout(() => {
+				this.postChatStudioCheckTimer = null;
+				if (!this.isViewOpen) return;
+				void this.detectAndTrackChatArtifacts(
+					nbId,
+					question,
+					preStudioIds,
+					hadPreStudioSnapshot,
+					queryStartedAt
+				);
+			}, 3000);
+		} catch (err: unknown) {
+			const msg = err instanceof Error ? err.message : String(err);
+			new Notice(i18n.noticeQueryError(msg));
+		} finally {
+			if (this.isSendingChat) {
+				this.isSendingChat = false;
+				this.sendBtnEl.disabled = false;
+				this.setStatusBanner(null);
+				this.renderChatFeed();
+			}
 		}
 	}
 
@@ -1057,12 +1285,488 @@ export class NotebookLMSidebarView extends ItemView {
 			};
 
 			await this.plugin.tracker.addJob(job);
+			await this.loadStudioArtifactsForActiveNotebook();
 			new Notice(i18n.noticeArtifactStarted(typeLabel, chosenFolderRel));
 		} catch (err: unknown) {
 			const msg = err instanceof Error ? err.message : String(err);
 			new Notice(i18n.noticeArtifactStartError(msg));
 		} finally {
 			this.setStatusBanner(null);
+		}
+	}
+
+	private expandStudioDrawer(): void {
+		if (this.isStudioDrawerExpanded) return;
+		this.isStudioDrawerExpanded = true;
+		if (this.studioDrawerListEl) {
+			this.studioDrawerListEl.removeClass('is-collapsed');
+		}
+		if (this.studioDrawerHeaderEl) {
+			this.studioDrawerHeaderEl.setAttr('aria-expanded', 'true');
+		}
+		if (this.studioDrawerChevronEl) {
+			setIcon(this.studioDrawerChevronEl, 'chevron-down');
+		}
+	}
+
+	private async detectAndTrackChatArtifacts(
+		nbId: string,
+		question: string,
+		preStudioIds: Set<string>,
+		hadPreStudioSnapshot: boolean,
+		queryStartedAt: number
+	): Promise<void> {
+		const i18n = this.i18n;
+		const folderInfo = this.getActiveNoteFolderInfo();
+		const nbObj = this.notebooks.find((n) => n.id === nbId);
+		const nbTitle = nbObj ? nbObj.title : 'Notebook';
+		const chosenFolderRel = folderInfo.folderRel
+			? normalizePath(folderInfo.folderRel)
+			: '';
+
+		try {
+			const latestStudio = await this.plugin.bridge.getStudioStatus(nbId, true);
+			if (!this.isViewOpen) return;
+			if (this.plugin.settings.activeNotebookId === nbId) {
+				this.studioArtifacts = latestStudio;
+				this.studioArtifactsLoaded = true;
+				this.renderStudioDrawerList();
+			}
+
+			const existingJobIds = new Set(
+				(this.plugin.settings.artifactJobs || []).map((j) => j.id)
+			);
+			const newlyCreatedRemote = latestStudio.filter((item) => {
+				const artId = item.artifact_id || item.id;
+				if (
+					!artId ||
+					!isSupportedArtifactType(item.type) ||
+					existingJobIds.has(artId) ||
+					preStudioIds.has(artId)
+				) {
+					return false;
+				}
+				const createdMs = item.created_at ? Date.parse(item.created_at) : NaN;
+				if (!Number.isNaN(createdMs)) {
+					return createdMs >= queryStartedAt - 30000;
+				}
+				return hadPreStudioSnapshot && item.status !== 'completed';
+			});
+
+			if (newlyCreatedRemote.length > 0) {
+				if (this.plugin.settings.activeNotebookId === nbId) {
+					this.expandStudioDrawer();
+				}
+				for (const remote of newlyCreatedRemote) {
+					const artId = remote.artifact_id || remote.id;
+					const normType = this.plugin.tracker.normalizeArtifactType(remote.type);
+					const typeLabel = this.plugin.tracker.getTypeLabel(normType);
+					const displayTitle =
+						remote.title?.trim() || `${typeLabel} (${folderInfo.noteName})`;
+
+					const job: ArtifactJob = {
+						id: artId,
+						notebookId: nbId,
+						notebookTitle: nbTitle,
+						type: normType,
+						label: displayTitle,
+						focusPrompt: remote.custom_instructions || question,
+						targetFolderRel: chosenFolderRel,
+						sourceNoteName: folderInfo.noteName,
+						sourceNotePath: folderInfo.notePath,
+						createdAt: Date.now(),
+						status: remote.status === 'completed' ? 'completed' : 'processing',
+						downloaded: false,
+					};
+					await this.plugin.tracker.addJob(job);
+					if (remote.status === 'completed') {
+						await this.plugin.tracker.downloadCompletedJob(job);
+						await this.plugin.saveSettings();
+						this.renderArtifactsPanel();
+						this.renderStudioDrawerList();
+					} else {
+						new Notice(i18n.noticeArtifactStarted(typeLabel, chosenFolderRel));
+					}
+				}
+			}
+		} catch (err) {
+			console.warn('Chat artifact studio status check error:', err);
+		}
+	}
+
+	private getIconForArtifactType(type: ArtifactType): string {
+		switch (type) {
+			case 'audio':
+				return 'headphones';
+			case 'report':
+				return 'file-text';
+			case 'quiz':
+				return 'help-circle';
+			case 'flashcards':
+				return 'layers';
+			case 'mind_map':
+				return 'git-fork';
+			case 'slide_deck':
+				return 'presentation';
+			case 'infographic':
+				return 'image';
+		}
+	}
+
+	private async importStudioArtifactToVault(
+		remote: StudioArtifactStatus
+	): Promise<string | null> {
+		const nbId = this.plugin.settings.activeNotebookId;
+		if (!nbId || !isSupportedArtifactType(remote.type)) return null;
+
+		const artId = remote.artifact_id || remote.id;
+		const existingJob = (this.plugin.settings.artifactJobs || []).find(
+			(j) => j.id === artId
+		);
+		if (existingJob && existingJob.downloaded) {
+			if (existingJob.downloadedFilePath) {
+				const existsInVault = await this.app.vault.adapter.exists(
+					existingJob.downloadedFilePath
+				);
+				if (existsInVault) {
+					return existingJob.downloadedFilePath;
+				}
+			}
+			existingJob.downloaded = false;
+			existingJob.downloadedFilePath = undefined;
+		}
+
+		const folderInfo = this.getActiveNoteFolderInfo();
+		const nbObj = this.notebooks.find((n) => n.id === nbId);
+		const nbTitle = nbObj ? nbObj.title : 'Notebook';
+		const normType = this.plugin.tracker.normalizeArtifactType(remote.type);
+		const typeLabel = this.plugin.tracker.getTypeLabel(normType);
+		const chosenFolderRel = folderInfo.folderRel
+			? normalizePath(folderInfo.folderRel)
+			: '';
+
+		const wasNewlyAdded = !existingJob;
+		let job = existingJob;
+		if (!job) {
+			job = {
+				id: artId,
+				notebookId: nbId,
+				notebookTitle: nbTitle,
+				type: normType,
+				label: remote.title?.trim() || `${typeLabel} (${folderInfo.noteName})`,
+				focusPrompt: remote.custom_instructions || undefined,
+				targetFolderRel: chosenFolderRel,
+				sourceNoteName: remote.title?.trim() || folderInfo.noteName,
+				sourceNotePath: folderInfo.notePath,
+				createdAt: remote.created_at
+					? Date.parse(remote.created_at) || Date.now()
+					: Date.now(),
+				status: 'completed',
+				downloaded: false,
+			};
+			await this.plugin.tracker.addJob(job);
+		}
+
+		const ok = await this.plugin.tracker.downloadCompletedJob(job);
+		if (ok && job.downloadedFilePath) {
+			await this.plugin.saveSettings();
+			this.renderArtifactsPanel();
+			this.renderStudioDrawerList();
+			return job.downloadedFilePath;
+		}
+		if (wasNewlyAdded) {
+			await this.plugin.tracker.removeJob(job.id);
+		}
+		return null;
+	}
+
+	private renderStudioDrawerList(): void {
+		if (!this.studioDrawerListEl || !this.studioDrawerBadgeEl) return;
+		const i18n = this.i18n;
+		this.studioDrawerBadgeEl.setText(String(this.studioArtifacts.length));
+
+		const preservedAudioEl =
+			this.activeAudioEl &&
+			this.playingArtifactId &&
+			this.activeAudioArtifactId === this.playingArtifactId
+				? this.activeAudioEl
+				: null;
+		const wasAudioPlaying = preservedAudioEl ? !preservedAudioEl.paused : false;
+		const savedAudioTime = preservedAudioEl ? preservedAudioEl.currentTime : 0;
+
+		this.studioDrawerListEl.empty();
+
+		if (this.studioArtifacts.length === 0) {
+			if (this.activeAudioEl || this.playingArtifactId) {
+				this.stopAudioPlayback();
+			}
+			this.studioDrawerListEl.createDiv({
+				cls: 'nlm-sources-empty',
+				text: i18n.studioArtifactsEmpty,
+			});
+			return;
+		}
+
+		const allJobs = this.plugin.settings.artifactJobs || [];
+		let reattachedActiveAudio = false;
+
+		for (const item of this.studioArtifacts) {
+			const artId = item.artifact_id || item.id;
+			const isSupported = isSupportedArtifactType(item.type);
+			const normType = this.plugin.tracker.normalizeArtifactType(item.type);
+			const typeLabel = isSupported
+				? this.plugin.tracker.getTypeLabel(normType)
+				: item.type || 'Artifact';
+			const matchingJob = allJobs.find((j) => j.id === artId);
+			const isCompleted =
+				item.status === 'completed' ||
+				matchingJob?.status === 'completed' ||
+				Boolean(matchingJob?.downloaded);
+			const isFailed =
+				!isCompleted &&
+				(item.status === 'failed' || matchingJob?.status === 'failed');
+			const isRunning = !isCompleted && !isFailed;
+			const isDownloaded = Boolean(
+				matchingJob?.downloaded && matchingJob.downloadedFilePath
+			);
+			const isDownloadingThis = this.plugin.tracker.isDownloading(artId);
+
+			const card = this.studioDrawerListEl.createDiv({
+				cls: `nlm-studio-item-card ${isRunning ? 'is-running' : ''}`,
+			});
+
+			const topRow = card.createDiv({ cls: 'nlm-studio-item-top' });
+			const iconSpan = topRow.createSpan({ cls: 'nlm-studio-item-icon' });
+			setIcon(iconSpan, this.getIconForArtifactType(normType));
+
+			const titleText = item.title?.trim() || typeLabel;
+			topRow.createSpan({
+				text: titleText,
+				cls: 'nlm-studio-item-title',
+				attr: {
+					title: item.custom_instructions
+						? `${titleText}\n\n${item.custom_instructions}`
+						: titleText,
+				},
+			});
+
+			const statusBadge = topRow.createSpan({
+				cls: `nlm-studio-status-pill is-${isCompleted ? 'completed' : isFailed ? 'failed' : 'running'}`,
+				text: isCompleted
+					? typeLabel
+					: isFailed
+						? i18n.artifactFailed
+						: `⏳ ${i18n.artifactProcessing}`,
+			});
+			if (isRunning) {
+				statusBadge.setAttr('title', item.status);
+			}
+
+			const actionsRow = card.createDiv({ cls: 'nlm-studio-item-actions' });
+
+			// Play button for completed audio artifacts
+			if (isSupported && isCompleted && normType === 'audio') {
+				const isPlayingThis = this.playingArtifactId === artId;
+				const playBtn = actionsRow.createEl('button', {
+					cls: `nlm-studio-action-btn ${isPlayingThis ? 'is-active' : ''}`,
+					text: isPlayingThis
+						? `⏹ ${i18n.btnPauseArtifact}`
+						: `▶ ${i18n.btnPlayArtifact}`,
+				});
+				playBtn.disabled = isDownloadingThis;
+				playBtn.addEventListener('click', () => {
+					void (async () => {
+						if (this.playingArtifactId === artId) {
+							this.stopAudioPlayback();
+							this.renderStudioDrawerList();
+							return;
+						}
+						const currentNbId = this.plugin.settings.activeNotebookId;
+						playBtn.disabled = true;
+						try {
+							// Ensure downloaded locally so it plays reliably inside Obsidian without Google cookie CORS issues
+							const localRelPath = await this.importStudioArtifactToVault(item);
+							if (
+								!this.isViewOpen ||
+								this.plugin.settings.activeNotebookId !== currentNbId
+							) {
+								return;
+							}
+							if (localRelPath) {
+								this.stopAudioPlayback();
+								this.playingArtifactId = artId;
+								this.renderStudioDrawerList();
+							}
+						} finally {
+							if (playBtn.isConnected) {
+								playBtn.disabled = this.plugin.tracker.isDownloading(artId);
+							}
+						}
+					})();
+				});
+			}
+
+			// Download / Open in Vault button for all completed supported artifacts
+			if (isSupported && isCompleted) {
+				const dlOrOpenBtn = actionsRow.createEl('button', {
+					cls: 'nlm-studio-action-btn',
+					text: isDownloaded
+						? `📂 ${i18n.btnOpenVaultArtifact}`
+						: `⬇ ${i18n.btnDownloadStudioArtifact}`,
+				});
+				dlOrOpenBtn.disabled = isDownloadingThis;
+				dlOrOpenBtn.addEventListener('click', () => {
+					void (async () => {
+						const currentNbId = this.plugin.settings.activeNotebookId;
+						dlOrOpenBtn.disabled = true;
+						try {
+							const localRelPath = await this.importStudioArtifactToVault(item);
+							if (
+								!this.isViewOpen ||
+								this.plugin.settings.activeNotebookId !== currentNbId
+							) {
+								return;
+							}
+							if (localRelPath) {
+								await this.app.workspace.openLinkText(localRelPath, '', false);
+							}
+						} finally {
+							if (dlOrOpenBtn.isConnected) {
+								dlOrOpenBtn.disabled = this.plugin.tracker.isDownloading(artId);
+							}
+						}
+					})();
+				});
+			} else if (isSupported && isRunning) {
+				// Allow tracking this running remote job if not already in tracker
+				if (!matchingJob) {
+					const trackBtn = actionsRow.createEl('button', {
+						cls: 'nlm-studio-action-btn',
+						text: `⏬ ${i18n.btnDownloadStudioArtifact}`,
+					});
+					trackBtn.addEventListener('click', () => {
+						void (async () => {
+							const folderInfo = this.getActiveNoteFolderInfo();
+							const nbId = this.plugin.settings.activeNotebookId;
+							const nbObj = this.notebooks.find((n) => n.id === nbId);
+							const job: ArtifactJob = {
+								id: artId,
+								notebookId: nbId,
+								notebookTitle: nbObj ? nbObj.title : 'Notebook',
+								type: normType,
+								label: `${titleText} (${folderInfo.noteName})`,
+								focusPrompt: item.custom_instructions || undefined,
+								targetFolderRel: folderInfo.folderRel
+									? normalizePath(folderInfo.folderRel)
+									: '',
+								sourceNoteName: folderInfo.noteName,
+								sourceNotePath: folderInfo.notePath,
+								createdAt: Date.now(),
+								status: 'processing',
+								downloaded: false,
+							};
+							await this.plugin.tracker.addJob(job);
+							this.renderStudioDrawerList();
+							new Notice(
+								i18n.noticeArtifactStarted(typeLabel, job.targetFolderRel)
+							);
+						})();
+					});
+				}
+			}
+
+			// Delete from NotebookLM studio button
+			const delBtn = actionsRow.createEl('button', {
+				cls: 'nlm-studio-del-btn',
+				attr: { 'aria-label': i18n.btnDeleteStudioArtifactTitle },
+			});
+			setIcon(delBtn, 'trash-2');
+			delBtn.addEventListener('click', () => {
+				void (async () => {
+					const nbId = this.plugin.settings.activeNotebookId;
+					if (!nbId) return;
+					delBtn.disabled = true;
+					try {
+						this.setStatusBanner(i18n.statusDeletingArtifact(titleText));
+						await this.plugin.bridge.deleteStudioArtifact(nbId, artId);
+						if (this.playingArtifactId === artId) {
+							this.stopAudioPlayback();
+						}
+						await this.plugin.tracker.removeJob(artId);
+						await this.loadStudioArtifactsForActiveNotebook();
+						new Notice(i18n.noticeStudioArtifactDeleted(titleText));
+					} catch (err: unknown) {
+						const msg = err instanceof Error ? err.message : String(err);
+						new Notice(i18n.noticeDeleteError(msg));
+					} finally {
+						if (delBtn.isConnected) {
+							delBtn.disabled = false;
+						}
+						this.setStatusBanner(null);
+					}
+				})();
+			});
+
+			// Embedded audio player if currently playing
+			if (this.playingArtifactId === artId && isCompleted && normType === 'audio') {
+				if (preservedAudioEl && this.activeAudioArtifactId === artId) {
+					const playerWrap = card.createDiv({ cls: 'nlm-studio-audio-player-wrap' });
+					playerWrap.appendChild(preservedAudioEl);
+					if (preservedAudioEl.currentTime === 0 && savedAudioTime > 0) {
+						preservedAudioEl.currentTime = savedAudioTime;
+					}
+					if (wasAudioPlaying && preservedAudioEl.paused) {
+						void preservedAudioEl.play().catch(() => {
+							// Ignore autoplay interruption
+						});
+					}
+					reattachedActiveAudio = true;
+				} else {
+					const updatedJob = (this.plugin.settings.artifactJobs || []).find(
+						(j) => j.id === artId
+					);
+					let audioSrc = '';
+					if (updatedJob?.downloadedFilePath) {
+						const normPath = normalizePath(updatedJob.downloadedFilePath);
+						const af = this.app.vault.getAbstractFileByPath(normPath);
+						if (af instanceof TFile) {
+							audioSrc = this.app.vault.getResourcePath(af);
+						} else {
+							audioSrc = this.app.vault.adapter.getResourcePath(normPath);
+						}
+					}
+					if (!audioSrc && item.audio_url) {
+						audioSrc = item.audio_url;
+					}
+					if (audioSrc) {
+						const playerWrap = card.createDiv({ cls: 'nlm-studio-audio-player-wrap' });
+						const audioEl = playerWrap.createEl('audio', {
+							cls: 'nlm-studio-audio-player',
+							attr: {
+								controls: 'true',
+								autoplay: 'true',
+								src: audioSrc,
+							},
+						});
+						audioEl.addEventListener(
+							'error',
+							() => {
+								if (item.audio_url && audioEl.src !== item.audio_url) {
+									audioEl.src = item.audio_url;
+								}
+							},
+							{ once: true }
+						);
+						this.activeAudioEl = audioEl;
+						this.activeAudioArtifactId = artId;
+						reattachedActiveAudio = true;
+					}
+				}
+			}
+		}
+
+		if (!reattachedActiveAudio && (this.activeAudioEl || this.playingArtifactId)) {
+			this.stopAudioPlayback();
 		}
 	}
 

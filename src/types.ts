@@ -87,7 +87,17 @@ export interface StudioArtifactStatus {
 	type: string;
 	status: string;
 	custom_instructions?: string | null;
-	title?: string;
+	title?: string | null;
+	created_at?: string | null;
+	url?: string | null;
+	audio_url?: string | null;
+	video_url?: string | null;
+	infographic_url?: string | null;
+	slide_deck_url?: string | null;
+	report_content?: string | null;
+	flashcard_count?: number | null;
+	duration_seconds?: number | null;
+	source_ids?: string[];
 }
 
 export interface NlmHealthStatus {

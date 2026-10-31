@@ -34,6 +34,18 @@ export const EN_STRINGS: TranslationStrings = {
 	noticeSourceDeleted: (title) => `Source removed: ${title}`,
 	noticeDeleteError: (msg) => `Failed to delete source: ${msg}`,
 
+	studioArtifactsDrawerTitle: 'Notebook Studio artifacts',
+	studioArtifactsEmpty: 'No studio artifacts in this notebook yet.',
+	btnRefreshStudioTitle: 'Refresh studio artifacts',
+	btnPlayArtifact: 'Play',
+	btnPauseArtifact: 'Close player',
+	btnDownloadStudioArtifact: 'Import to vault',
+	btnOpenVaultArtifact: 'Open in vault',
+	btnDeleteStudioArtifactTitle: 'Delete artifact from notebook',
+	statusDeletingArtifact: (title) => `Deleting artifact "${title}"...`,
+	noticeStudioArtifactDeleted: (title) => `Artifact deleted: ${title}`,
+	artifactProcessing: 'In progress',
+
 	studioAudio: 'Audio',
 	studioReport: 'Report',
 	studioQuiz: 'Quiz',

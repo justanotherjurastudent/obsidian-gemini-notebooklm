@@ -321,10 +321,28 @@ export class NlmBridge {
 		return this.parseJsonSafe<{ artifact_id: string; status: string }>(out);
 	}
 
-	public async getStudioStatus(notebookId: string): Promise<StudioArtifactStatus[]> {
-		const out = await this.runNlm(['studio', 'status', notebookId, '--json'], 45000);
+	public async getStudioStatus(
+		notebookId: string,
+		full = false
+	): Promise<StudioArtifactStatus[]> {
+		const args = ['studio', 'status', notebookId];
+		if (full) {
+			args.push('--full');
+		}
+		args.push('--json');
+		const out = await this.runNlm(args, 45000);
 		if (!out) return [];
 		return this.parseJsonSafe<StudioArtifactStatus[]>(out);
+	}
+
+	public async deleteStudioArtifact(
+		notebookId: string,
+		artifactId: string
+	): Promise<void> {
+		await this.runNlm(
+			['studio', 'delete', notebookId, artifactId, '--confirm'],
+			45000
+		);
 	}
 
 	public async downloadArtifact(

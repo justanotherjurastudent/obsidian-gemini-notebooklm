@@ -1,7 +1,7 @@
 {
 	"id": "gemini-notebooklm",
 	"name": "Gemini NotebookLM Studio",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"minAppVersion": "1.8.7",
 	"description": "Integrate Google NotebookLM into the right sidebar with notebook switching, multi-file context, grounded chat, and automatic artifact downloads including Mermaid mind maps.",
 	"author": "Lukas",

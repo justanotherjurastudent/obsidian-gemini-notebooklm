@@ -34,6 +34,18 @@ export const DE_STRINGS: TranslationStrings = {
 	noticeSourceDeleted: (title) => `Quelle entfernt: ${title}`,
 	noticeDeleteError: (msg) => `Fehler beim Löschen: ${msg}`,
 
+	studioArtifactsDrawerTitle: 'Studio-Artefakte im Notebook',
+	studioArtifactsEmpty: 'Noch keine Studio-Artefakte in diesem Notebook vorhanden.',
+	btnRefreshStudioTitle: 'Studio-Artefakte aktualisieren',
+	btnPlayArtifact: 'Abspielen',
+	btnPauseArtifact: 'Stopp',
+	btnDownloadStudioArtifact: 'In Vault laden',
+	btnOpenVaultArtifact: 'Im Vault öffnen',
+	btnDeleteStudioArtifactTitle: 'Artefakt aus Notebook löschen',
+	statusDeletingArtifact: (title) => `Lösche Artefakt „${title}“...`,
+	noticeStudioArtifactDeleted: (title) => `Artefakt gelöscht: ${title}`,
+	artifactProcessing: 'In Bearbeitung',
+
 	studioAudio: 'Audio',
 	studioReport: 'Report',
 	studioQuiz: 'Quiz',

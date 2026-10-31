@@ -33,6 +33,18 @@ export interface TranslationStrings {
 	noticeSourceDeleted: (title: string) => string;
 	noticeDeleteError: (msg: string) => string;
 
+	studioArtifactsDrawerTitle: string;
+	studioArtifactsEmpty: string;
+	btnRefreshStudioTitle: string;
+	btnPlayArtifact: string;
+	btnPauseArtifact: string;
+	btnDownloadStudioArtifact: string;
+	btnOpenVaultArtifact: string;
+	btnDeleteStudioArtifactTitle: string;
+	statusDeletingArtifact: (title: string) => string;
+	noticeStudioArtifactDeleted: (title: string) => string;
+	artifactProcessing: string;
+
 	studioAudio: string;
 	studioReport: string;
 	studioQuiz: string;

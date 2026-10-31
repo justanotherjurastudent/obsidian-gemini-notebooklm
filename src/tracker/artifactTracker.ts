@@ -3,6 +3,7 @@ import { ArtifactJob, ArtifactType } from '../types';
 import { NlmBridge } from '../bridge/nlmBridge';
 import { UILanguage, resolveUILanguage, t } from '../i18n';
 import { convertMindmapJsonToMarkdown } from '../utils/mindmapConverter';
+import { normalizeArtifactType as normalizeType } from '../utils/artifactParser';
 
 const MAX_STORED_JOBS = 30;
 
@@ -14,6 +15,7 @@ export class ArtifactTracker {
 	private onUpdateCallbacks: Set<() => void> = new Set();
 	private intervalId: number | null = null;
 	private isPolling = false;
+	private inFlightDownloads: Map<string, Promise<boolean>> = new Map();
 	private autoInsertLink: () => boolean;
 	private convertMindmap: () => boolean;
 	private getLang: () => UILanguage;
@@ -89,7 +91,9 @@ export class ArtifactTracker {
 	}
 
 	public async removeJob(jobId: string): Promise<void> {
-		const jobs = this.getJobs().filter((j) => j.id !== jobId);
+		const current = this.getJobs();
+		const jobs = current.filter((j) => j.id !== jobId);
+		if (jobs.length === current.length) return;
 		await this.saveJobs(jobs);
 		this.notifyUpdate();
 	}
@@ -134,6 +138,10 @@ export class ArtifactTracker {
 			case 'infographic':
 				return 'Infographic';
 		}
+	}
+
+	public normalizeArtifactType(rawType: string): ArtifactType {
+		return normalizeType(rawType);
 	}
 
 	private sanitizeFileName(name: string): string {
@@ -219,7 +227,28 @@ export class ArtifactTracker {
 		}
 	}
 
-	public async downloadCompletedJob(job: ArtifactJob): Promise<boolean> {
+	public isDownloading(jobId: string): boolean {
+		return this.inFlightDownloads.has(jobId);
+	}
+
+	public downloadCompletedJob(job: ArtifactJob): Promise<boolean> {
+		if (job.downloaded) {
+			return Promise.resolve(true);
+		}
+		const existing = this.inFlightDownloads.get(job.id);
+		if (existing) {
+			return existing;
+		}
+		const task = this.performDownloadCompletedJob(job).finally(() => {
+			this.inFlightDownloads.delete(job.id);
+			this.notifyUpdate();
+		});
+		this.inFlightDownloads.set(job.id, task);
+		this.notifyUpdate();
+		return task;
+	}
+
+	private async performDownloadCompletedJob(job: ArtifactJob): Promise<boolean> {
 		const i18n = t(this.getLang());
 		const adapter = this.app.vault.adapter;
 
