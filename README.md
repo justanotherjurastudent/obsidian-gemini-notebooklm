@@ -54,6 +54,7 @@ A browser window will open so you can sign in to your Google account.
 ### 🔒 Privacy, Security & Permissions
 
 - **No Hidden Telemetry**: This plugin does not collect analytics, usage telemetry, or background tracking data.
+- **Local Chat History**: Questions and NotebookLM answers are stored in plaintext in the plugin's `data.json` inside your vault's `.obsidian` folder so the sidebar can restore them. Clear them at any time with the trash button in the sidebar. Do not enable a sync service for `.obsidian` if you do not want these transcripts synced.
 - **Local Vault Storage**: All downloaded artifacts, mind maps, and settings are stored strictly inside your local Obsidian vault using the official Obsidian Vault API (`app.vault.adapter`).
 - **Subprocess Execution (`child_process.execFile`)**: The plugin calls the local `nlm` binary using `execFile` with direct argument arrays (no shell string evaluation or shell injection risk) exclusively to talk to your local `notebooklm-mcp-cli` instance.
 - **Vault File Enumeration**: `app.vault.getFiles()` is used solely to populate the `@` file picker when attaching context documents.
@@ -128,6 +129,7 @@ Es öffnet sich ein Browserfenster zur Anmeldung bei deinem Google-Konto.
 ### 🔒 Datenschutz, Sicherheit & Berechtigungen
 
 - **Keine Telemetrie**: Das Plugin erhebt keinerlei Nutzungsstatistiken, Tracking-Daten oder Telemetrie im Hintergrund.
+- **Lokaler Chat-Verlauf**: Fragen und NotebookLM-Antworten werden im Klartext in der `data.json` des Plugins im `.obsidian`-Ordner deines Vaults gespeichert, damit die Seitenleiste sie wiederherstellen kann. Über die Papierkorb-Schaltfläche in der Seitenleiste kannst du sie jederzeit löschen. Wenn du diese Verläufe nicht synchronisieren möchtest, aktiviere keinen Sync-Dienst für `.obsidian`.
 - **Lokaler Vault-Zugriff**: Alle heruntergeladenen Artefakte, Mindmaps und Einstellungen werden ausschließlich innerhalb deines Obsidian-Vaults über die offizielle Obsidian Vault API (`app.vault.adapter`) gespeichert.
 - **Lokale Befehlsausführung (`child_process.execFile`)**: Das Plugin ruft das lokale `nlm`-Programm per `execFile` mit direkten Parameter-Arrays auf (ohne Shell-String-Evaluation oder Shell-Injection-Risiko), ausschließlich zur Kommunikation mit deiner lokalen `notebooklm-mcp-cli`-Installation.
 - **Vault-Dateiauswahl**: `app.vault.getFiles()` wird ausschließlich genutzt, um die Dateiauswahl im `@`-Kontext-Picker anzuzeigen.
