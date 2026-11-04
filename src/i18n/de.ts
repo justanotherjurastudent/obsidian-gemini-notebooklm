@@ -28,7 +28,11 @@ export const DE_STRINGS: TranslationStrings = {
 
 	sourcesTitle: 'Notebook-Quellen',
 	btnUploadActiveNote: (name) => `📄 Aktive Notiz („${name}“) hochladen`,
+	sourceActiveNoteInNotebook: (name) => `✓ „${name}“ ist im Notebook`,
 	sourcesEmpty: 'Noch keine Quellen in diesem Notebook.',
+	btnDisableSourceTitle: 'Quelle für Abfragen deaktivieren',
+	btnEnableSourceTitle: 'Quelle für Abfragen aktivieren',
+	sourcesAllDisabled: 'Alle Quellen sind deaktiviert.',
 	btnDeleteSourceTitle: 'Quelle aus Notebook entfernen',
 	statusDeletingSource: (title) => `Entferne Quelle „${title}“...`,
 	noticeSourceDeleted: (title) => `Quelle entfernt: ${title}`,
@@ -91,6 +95,7 @@ export const DE_STRINGS: TranslationStrings = {
 	noticeCreateError: (msg) => `Fehler beim Erstellen: ${msg}`,
 	statusUpdatingSource: (name) => `🔄 Aktualisiere „${name}“ in NotebookLM...`,
 	statusUploadingSource: (name) => `📤 Lade „${name}“ zu NotebookLM hoch...`,
+	statusUploadingBeforeSend: (names) => `📤 Vor dem Senden nötig: ${names}`,
 	noticeSourceUploaded: (name) => `✅ Quelle in NotebookLM hinterlegt: ${name}`,
 	noticeUploadFailed: (name, msg) => `❌ Upload fehlgeschlagen (${name}): ${msg}`,
 	errorContextSyncFailed: (name) =>
@@ -174,7 +179,7 @@ export const DE_STRINGS: TranslationStrings = {
 	settingsSetupIntro:
 		'Dieses Plugin kommuniziert über das Open-Source-Tool „notebooklm-mcp-cli“ (Befehl: nlm) mit Google NotebookLM.',
 	settingsPrivacyNote:
-		'Datenschutz-Hinweis: Beim Hochladen von Quellen, Stellen von Fragen oder Generieren von Artefakten werden die ausgewählten Vault-Dateien und Prompts über nlm an Google NotebookLM (notebooklm.google.com) übertragen.',
+		'Datenschutz-Hinweis: Beim Hochladen von Quellen, Stellen von Fragen oder Generieren von Artefakten werden die ausgewählten Vault-Dateien und Prompts über nlm an Google NotebookLM (notebooklm.google.com) übertragen. Fragen und Antworten aus dem Chat werden zusätzlich im Klartext in der Plugin-Datendatei dieses Vaults gespeichert; über die Papierkorb-Schaltfläche in der Seitenleiste lassen sie sich löschen.',
 	settingsStep1Title: '1. Installation von nlm',
 	settingsStep1Desc:
 		'Installiere das Paket über Python (uv oder pipx): uv tool install notebooklm-mcp-cli  oder  pipx install notebooklm-mcp-cli',

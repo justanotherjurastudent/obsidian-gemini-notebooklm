@@ -28,7 +28,11 @@ export const EN_STRINGS: TranslationStrings = {
 
 	sourcesTitle: 'Notebook sources',
 	btnUploadActiveNote: (name) => `📄 Upload active note ("${name}")`,
+	sourceActiveNoteInNotebook: (name) => `✓ "${name}" is in the notebook`,
 	sourcesEmpty: 'No sources in this notebook yet.',
+	btnDisableSourceTitle: 'Exclude source from queries',
+	btnEnableSourceTitle: 'Include source in queries',
+	sourcesAllDisabled: 'All sources are disabled.',
 	btnDeleteSourceTitle: 'Remove source from notebook',
 	statusDeletingSource: (title) => `Removing source "${title}"...`,
 	noticeSourceDeleted: (title) => `Source removed: ${title}`,
@@ -91,6 +95,7 @@ export const EN_STRINGS: TranslationStrings = {
 	noticeCreateError: (msg) => `Failed to create notebook: ${msg}`,
 	statusUpdatingSource: (name) => `🔄 Updating "${name}" in NotebookLM...`,
 	statusUploadingSource: (name) => `📤 Uploading "${name}" to NotebookLM...`,
+	statusUploadingBeforeSend: (names) => `📤 Upload required before sending: ${names}`,
 	noticeSourceUploaded: (name) => `✅ Source added to NotebookLM: ${name}`,
 	noticeUploadFailed: (name, msg) => `❌ Upload failed (${name}): ${msg}`,
 	errorContextSyncFailed: (name) => `Failed to synchronize context file "${name}".`,
@@ -172,7 +177,7 @@ export const EN_STRINGS: TranslationStrings = {
 	settingsSetupIntro:
 		'This plugin communicates with Google NotebookLM via the open-source CLI tool "notebooklm-mcp-cli" (command: nlm).',
 	settingsPrivacyNote:
-		'Privacy disclosure: When you upload sources, ask questions, or generate artifacts, the selected vault files and prompts are sent via nlm to Google NotebookLM (notebooklm.google.com).',
+		'Privacy disclosure: When you upload sources, ask questions, or generate artifacts, the selected vault files and prompts are sent via nlm to Google NotebookLM (notebooklm.google.com). Chat questions and answers are also stored in plaintext in this vault\u2019s plugin data file; clear them with the trash button in the sidebar.',
 	settingsStep1Title: '1. Install nlm',
 	settingsStep1Desc:
 		'Install via Python (uv or pipx): uv tool install notebooklm-mcp-cli  or  pipx install notebooklm-mcp-cli',

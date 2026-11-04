@@ -27,7 +27,11 @@ export interface TranslationStrings {
 
 	sourcesTitle: string;
 	btnUploadActiveNote: (name: string) => string;
+	sourceActiveNoteInNotebook: (name: string) => string;
 	sourcesEmpty: string;
+	btnDisableSourceTitle: string;
+	btnEnableSourceTitle: string;
+	sourcesAllDisabled: string;
 	btnDeleteSourceTitle: string;
 	statusDeletingSource: (title: string) => string;
 	noticeSourceDeleted: (title: string) => string;
@@ -89,6 +93,7 @@ export interface TranslationStrings {
 	noticeCreateError: (msg: string) => string;
 	statusUpdatingSource: (name: string) => string;
 	statusUploadingSource: (name: string) => string;
+	statusUploadingBeforeSend: (names: string) => string;
 	noticeSourceUploaded: (name: string) => string;
 	noticeUploadFailed: (name: string, msg: string) => string;
 	errorContextSyncFailed: (name: string) => string;

@@ -7,7 +7,7 @@
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-		"test": "jiti src/utils/artifactParser.test.ts && jiti src/utils/mathDelimiters.test.ts",
+		"test": "jiti src/utils/artifactParser.test.ts && jiti src/utils/mathDelimiters.test.ts && jiti src/utils/sourceScope.test.ts && jiti src/utils/vaultFolder.test.ts",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"lint": "eslint ."
 	},

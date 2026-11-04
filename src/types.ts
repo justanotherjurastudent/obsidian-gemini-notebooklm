@@ -118,9 +118,13 @@ export interface NotebookLMPluginSettings {
 	convertMindmapToMermaid: boolean;
 	activeNotebookId: string;
 	artifactJobs: ArtifactJob[];
-	chatHistories: Record<string, { conversationId?: string; messages: ChatMessage[] }>;
+	chatHistories: Record<
+		string,
+		{ conversationId?: string; scopeKey?: string; messages: ChatMessage[] }
+	>;
 	uploadedFileMap: Record<string, Record<string, string>>;
 	uploadedFileMtimes: Record<string, Record<string, number>>;
+	disabledSourceIds: Record<string, string[]>;
 }
 
 export const DEFAULT_SETTINGS: NotebookLMPluginSettings = {
@@ -136,4 +140,5 @@ export const DEFAULT_SETTINGS: NotebookLMPluginSettings = {
 	chatHistories: {},
 	uploadedFileMap: {},
 	uploadedFileMtimes: {},
+	disabledSourceIds: {},
 };
