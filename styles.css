@@ -904,11 +904,27 @@
 	}
 }
 
+/* Same fill as the send button (mod-cta); --interactive-accent-rgb is not
+   defined by every theme/Obsidian version, which left the bubble transparent. */
 .nlm-chat-user {
 	align-self: flex-end;
-	background: rgba(var(--interactive-accent-rgb), 0.15);
-	border: 1px solid rgba(var(--interactive-accent-rgb), 0.3);
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: 1px solid var(--interactive-accent);
 	border-bottom-right-radius: 3px;
+}
+
+.nlm-chat-user .nlm-chat-author,
+.nlm-chat-user .nlm-chat-ctx-badge {
+	color: var(--text-on-accent);
+	background: transparent;
+	opacity: 0.85;
+}
+
+/* Accent-colored links would vanish on the accent background */
+.nlm-chat-user .nlm-chat-content a {
+	color: var(--text-on-accent);
+	text-decoration: underline;
 }
 
 .nlm-chat-assistant {
@@ -989,6 +1005,15 @@
 
 .nlm-chat-content p:last-child {
 	margin-bottom: 0;
+}
+
+/* Long display formulas scroll inside the bubble instead of widening the sidebar */
+.nlm-chat-content .math-block,
+.nlm-chat-content mjx-container[display='true'] {
+	max-width: 100%;
+	overflow-x: auto;
+	overflow-y: hidden;
+	padding-bottom: 2px;
 }
 
 .nlm-chat-refs {

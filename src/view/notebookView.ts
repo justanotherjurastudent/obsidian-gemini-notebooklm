@@ -27,6 +27,7 @@ import {
 import { NOTEBOOKLM_ICON_ID } from '../icons/notebooklmLogo';
 import { t, TranslationStrings } from '../i18n';
 import { isSupportedArtifactType } from '../utils/artifactParser';
+import { normalizeMathDelimiters } from '../utils/mathDelimiters';
 
 export const VIEW_TYPE_NOTEBOOKLM = 'gemini-notebooklm-sidebar-view';
 const MAX_CHAT_MESSAGES = 50;
@@ -1121,6 +1122,8 @@ export class NotebookLMSidebarView extends ItemView {
 		}
 
 		for (const msg of messages) {
+			// NotebookLM emits \(..\)/\[..\]; Obsidian only renders $..$/$$..$$
+			const rendered = normalizeMathDelimiters(msg.content);
 			const bubble = this.chatFeedEl.createDiv({
 				cls: `nlm-chat-bubble nlm-chat-${msg.role}`,
 			});
@@ -1145,7 +1148,7 @@ export class NotebookLMSidebarView extends ItemView {
 			const contentDiv = bubble.createDiv({
 				cls: 'nlm-chat-content markdown-rendered',
 			});
-			void MarkdownRenderer.render(this.app, msg.content, contentDiv, '', this);
+			void MarkdownRenderer.render(this.app, rendered, contentDiv, '', this);
 
 			if (msg.references && msg.references.length > 0) {
 				const refsDetails = bubble.createEl('details', { cls: 'nlm-chat-refs' });
@@ -1177,7 +1180,7 @@ export class NotebookLMSidebarView extends ItemView {
 					text: i18n.btnCopy,
 				});
 				copyBtn.addEventListener('click', () => {
-					void navigator.clipboard.writeText(msg.content);
+					void navigator.clipboard.writeText(rendered);
 					new Notice(i18n.noticeCopied);
 				});
 
@@ -1192,7 +1195,7 @@ export class NotebookLMSidebarView extends ItemView {
 							new Notice(i18n.noticeNoActiveFile);
 							return;
 						}
-						await this.app.vault.append(activeFile, `\n\n${msg.content}\n`);
+						await this.app.vault.append(activeFile, `\n\n${rendered}\n`);
 						new Notice(i18n.noticeInsertedIntoNote(activeFile.name));
 					})();
 				});
