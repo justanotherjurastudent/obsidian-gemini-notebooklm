@@ -4,6 +4,7 @@ import { NlmBridge } from '../bridge/nlmBridge';
 import { UILanguage, resolveUILanguage, t } from '../i18n';
 import { convertMindmapJsonToMarkdown } from '../utils/mindmapConverter';
 import { normalizeArtifactType as normalizeType } from '../utils/artifactParser';
+import { sanitizeVaultFolderPath } from '../utils/vaultFolder';
 
 const MAX_STORED_JOBS = 30;
 
@@ -260,7 +261,7 @@ export class ArtifactTracker {
 			const baseNote = this.sanitizeFileName(job.sourceNoteName || 'NotebookLM');
 			const dateSuffix = this.formatLocalTimestamp(job.createdAt);
 
-			const folderRel = normalizePath(job.targetFolderRel || '');
+			const folderRel = sanitizeVaultFolderPath(job.targetFolderRel || '');
 			if (folderRel && folderRel !== '/' && folderRel !== '.') {
 				const folderExists = await adapter.exists(folderRel);
 				if (!folderExists) {

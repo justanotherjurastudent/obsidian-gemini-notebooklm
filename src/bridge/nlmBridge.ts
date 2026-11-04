@@ -17,6 +17,38 @@ interface ExecFileResult {
 	stderr: string;
 }
 
+/**
+ * The nlm CLI only needs these to boot. Spreading process.env would hand every
+ * secret in Obsidian's environment (tokens, cloud keys) to a third-party tool.
+ */
+function buildChildEnv(): NodeJS.ProcessEnv {
+	const allowlist = [
+		'PATH',
+		'Path',
+		'HOME',
+		'USERPROFILE',
+		'SYSTEMROOT',
+		'COMSPEC',
+		'TEMP',
+		'TMP',
+		'LANG',
+		'LC_ALL',
+		'SSL_CERT_FILE',
+		'SSL_CERT_DIR',
+		'HTTP_PROXY',
+		'HTTPS_PROXY',
+		'NO_PROXY',
+	];
+	const env: NodeJS.ProcessEnv = {};
+	for (const key of allowlist) {
+		const value = process.env[key];
+		if (value !== undefined) env[key] = value;
+	}
+	env.PYTHONIOENCODING = 'utf-8';
+	env.PYTHONUTF8 = '1';
+	return env;
+}
+
 function runExecFile(
 	file: string,
 	args: string[],
@@ -160,11 +192,7 @@ export class NlmBridge {
 				timeout: timeoutMs,
 				maxBuffer: 25 * 1024 * 1024,
 				windowsHide: true,
-				env: {
-					...process.env,
-					PYTHONIOENCODING: 'utf-8',
-					PYTHONUTF8: '1',
-				},
+				env: buildChildEnv(),
 			});
 			return stdout.trim();
 		} catch (err: unknown) {

@@ -1,6 +1,7 @@
-import { App, FuzzySuggestModal, Modal, Notice, Setting, TFile, normalizePath } from 'obsidian';
+import { App, FuzzySuggestModal, Modal, Notice, Setting, TFile } from 'obsidian';
 import { ArtifactCreateOptions, ArtifactType } from '../types';
 import { UILanguage, t } from '../i18n';
+import { sanitizeVaultFolderPath } from '../utils/vaultFolder';
 import { FolderSuggest } from './folderSuggest';
 
 const SUPPORTED_EXTENSIONS = new Set([
@@ -179,8 +180,7 @@ export class ArtifactConfigModal extends Modal {
 				text.setPlaceholder(i18n.modalTargetFolderPlaceholder)
 					.setValue(this.options.targetFolderRel ?? '')
 					.onChange((val) => {
-						const trimmed = val.trim().replace(/^\/+|\/+$/g, '');
-						this.options.targetFolderRel = trimmed ? normalizePath(trimmed) : '';
+						this.options.targetFolderRel = sanitizeVaultFolderPath(val);
 					});
 				this.folderSuggest = new FolderSuggest(this.app, text.inputEl);
 			})
